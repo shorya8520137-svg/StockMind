@@ -1,0 +1,234 @@
+.page {
+    padding: 24px 32px;
+    height: 100%;
+    background: #020617;
+    color: #e5e7eb;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ================= TOP BAR ================= */
+.topBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+/* ================= SEARCH ================= */
+.searchBox {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: #020617;
+    border: 1px solid #1f2937;
+    position: relative;
+}
+
+.searchBox input {
+    flex: 1;
+    min-width: 180px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #e5e7eb;
+    font-size: 14px;
+}
+
+.searchBox input::placeholder {
+    color: #6b7280;
+}
+
+/* ================= CHIPS ================= */
+.chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #0f172a;
+    color: #e5e7eb;
+    font-size: 13px;
+}
+
+.chip button {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.chip button:hover {
+    color: #e5e7eb;
+}
+
+/* ================= SUGGESTIONS ================= */
+.suggestions {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 100%;
+    background: #020617;
+    border: 1px solid #1f2937;
+    border-radius: 10px;
+    z-index: 20;
+    overflow: hidden;
+}
+
+.suggestions div {
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.suggestions div:hover {
+    background: #0f172a;
+}
+
+/* ================= FILTERS ================= */
+.filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filters input[type="date"] {
+    background: #020617;
+    border: 1px solid #1f2937;
+    color: #e5e7eb;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+}
+
+/* ================= DOWNLOAD ICON ================= */
+.iconBtn {
+    height: 40px;
+    width: 40px;
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    background: transparent;
+    color: #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.iconBtn:hover {
+    background: #0f172a;
+}
+
+/* ================= CARD ================= */
+.card {
+    flex: 1;
+    border-radius: 18px;
+    border: 1px solid #1f2937;
+    background: linear-gradient(180deg, #020617, #020617);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ================= TABLE ================= */
+.tableWrap {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table thead th {
+    position: sticky;
+    top: 0;
+    background: #020617;
+    z-index: 5;
+    text-align: left;
+    padding: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 1px solid #1f2937;
+}
+
+.table tbody td {
+    padding: 16px;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* ================= EMPTY ================= */
+.empty {
+    text-align: center;
+    padding: 32px;
+    color: #9ca3af;
+}
+
+/* ================= STATUS ================= */
+.status {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.pending {
+    background: #1f2937;
+    color: #e5e7eb;
+}
+
+.intransit {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
+.delivered {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.dispatched {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+}
+
+/* ================= PAGINATION ================= */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.pagination button {
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    background: transparent;
+    color: #e5e7eb;
+    cursor: pointer;
+}
+
+.pagination button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pagination span {
+    color: #9ca3af;
+    font-size: 14px;
+}

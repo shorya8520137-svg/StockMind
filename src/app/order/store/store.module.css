@@ -1,0 +1,148 @@
+.wrapper {
+    background: #050b1a;
+    padding: 20px;
+    border-radius: 14px;
+    color: #fff;
+}
+
+.tableWrap {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table thead {
+    background: #0b1224;
+}
+
+.table th {
+    padding: 14px;
+    font-size: 13px;
+    text-align: left;
+    color: #9ca3af;
+}
+
+.table td {
+    padding: 14px;
+    border-bottom: 1px solid #1c2540;
+    font-size: 14px;
+}
+
+.amount {
+    font-weight: 600;
+}
+
+.paid {
+    background: #16a34a33;
+    color: #22c55e;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.mode {
+    background: #1e3a8a33;
+    color: #60a5fa;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.date {
+    color: #cbd5f5;
+}
+
+.dateHead {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.actionCell {
+    position: relative;
+}
+
+.actionBtn {
+    background: transparent;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.actionMenu {
+    position: absolute;
+    right: 0;
+    top: 28px;
+    background: #0b1224;
+    border: 1px solid #1c2540;
+    border-radius: 10px;
+    padding: 6px;
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+}
+
+.actionMenu button {
+    background: #111827;
+    border: none;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.actionMenu button:hover {
+    background: #1e40af;
+}
+.topBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.primaryBtn {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+/* MODAL */
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+}
+
+.modalContent {
+    background: #fff;
+    width: 95%;
+    max-width: 1200px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 12px;
+    position: relative;
+}
+
+.closeBtn {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+}

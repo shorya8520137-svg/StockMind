@@ -1,0 +1,134 @@
+/* PAGE SCROLL (IMPORTANT) */
+.pageScroll {
+    height: 100%;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+/* Subtle scrollbar */
+.pageScroll::-webkit-scrollbar {
+    width: 6px;
+}
+.pageScroll::-webkit-scrollbar-thumb {
+    background: rgba(148,163,184,0.3);
+    border-radius: 10px;
+}
+.pageScroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* KPIs */
+.kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.kpi {
+    padding: 18px;
+    border-radius: 14px;
+    border: 1px solid rgb(30 41 59);
+    background: #020617;
+}
+
+.kpi span {
+    font-size: 12px;
+    color: rgb(148 163 184);
+}
+
+.kpi b {
+    display: block;
+    font-size: 22px;
+    margin-top: 6px;
+}
+
+/* GRID */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+/* CARD */
+.card {
+    padding: 16px;
+    border-radius: 16px;
+    background: #020617;
+    border: 1px solid rgb(30 41 59);
+}
+
+.card h3 {
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+/* Span */
+.span2 {
+    grid-column: span 2;
+}
+
+/* HEATMAP */
+.heatHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.heatHeader select {
+    background: transparent;
+    border: 1px solid rgb(30 41 59);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+.heatmap {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.cell {
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: white;
+}
+
+/* LEGEND */
+.legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.legend div {
+    flex: 1;
+    height: 6px;
+    border-radius: 6px;
+    background: linear-gradient(
+            to right,
+            rgba(249,115,22,0.2),
+            rgba(249,115,22,1)
+    );
+}
+
+/* ACTIVITY */
+.activity {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.activity li {
+    padding: 8px 0;
+    border-bottom: 1px solid rgb(30 41 59);
+    color: rgb(148 163 184);
+    font-size: 13px;
+}

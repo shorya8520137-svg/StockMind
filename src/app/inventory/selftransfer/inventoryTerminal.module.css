@@ -1,0 +1,48 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.terminal {
+    width: 720px;
+    height: 420px;
+    background: #020617;
+    border-radius: 14px;
+    padding: 18px;
+    color: #e5e7eb;
+    font-family: "JetBrains Mono", monospace;
+    box-shadow: 0 30px 80px rgba(0,0,0,.7);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.loader {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid rgba(59,130,246,.3);
+    border-top-color: #3b82f6;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.logs {
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    color: #d1fae5;
+}

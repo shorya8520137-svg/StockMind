@@ -1,0 +1,134 @@
+.page {
+    padding: 24px;
+    background: radial-gradient(circle at top, #0b0e14, #020617);
+    color: #e5e7eb;
+
+    /* ✅ fix blank bottom space */
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* SUMMARY */
+.summaryGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-shrink: 0;
+}
+
+.card {
+    background: rgba(255,255,255,0.04);
+    border-radius: 16px;
+    padding: 18px;
+}
+
+.in { color: #22c55e; }
+.out { color: #ef4444; }
+
+/* MAIN GRID */
+.mainGrid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 24px;
+
+    /* ✅ key fix */
+    flex: 1;
+    min-height: 0;
+}
+
+/* TIMELINE */
+.timeline {
+    position: relative;
+    padding-left: 28px;
+
+    overflow-y: auto;
+    min-height: 0;
+
+    scrollbar-width: none;
+}
+.timeline::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+.rail {
+    position: absolute;
+    left: 12px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(#6366f1, #22c55e);
+}
+
+.node {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    cursor: pointer;
+}
+
+.dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    box-shadow: 0 0 12px currentColor;
+}
+
+.nodeCard {
+    background: rgba(255,255,255,0.05);
+    border-radius: 14px;
+    padding: 12px;
+    width: 260px;
+}
+
+/* RIGHT COLUMN */
+.rightCol {
+    display: grid;
+    grid-template-rows: 260px 1fr;
+    gap: 24px;
+
+    min-height: 0;
+}
+
+/* GRAPH */
+.graph {
+    background: rgba(255,255,255,0.04);
+    border-radius: 18px;
+    padding: 16px;
+}
+
+/* TABLE */
+.tableWrap {
+    background: rgba(255,255,255,0.04);
+    border-radius: 18px;
+    padding: 16px;
+
+    overflow-y: auto;
+    min-height: 0;
+
+    scrollbar-width: none;
+}
+.tableWrap::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+.tableWrap table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tableWrap th {
+    text-align: left;
+    font-size: 12px;
+    opacity: 0.6;
+    padding-bottom: 8px;
+}
+
+.tableWrap td {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}

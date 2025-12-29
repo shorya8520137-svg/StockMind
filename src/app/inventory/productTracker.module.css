@@ -1,0 +1,238 @@
+/* ================= FULLSCREEN OVERLAY ================= */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.88);
+    backdrop-filter: blur(6px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+}
+
+/* ================= MODAL ================= */
+.modal {
+    width: 92%;
+    max-width: 1180px;
+    max-height: 90vh;
+    background: radial-gradient(
+            1000px circle at top,
+            #0b1220 0%,
+            #020617 50%,
+            #020617 100%
+    );
+    border: 1px solid #1f2937;
+    border-radius: 16px;
+    padding: 22px 24px;
+    position: relative;
+    color: #e5e7eb;
+    overflow: hidden;
+}
+
+/* ================= CLOSE BUTTON ================= */
+.closeTopBtn {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 18px;
+    cursor: pointer;
+}
+.closeTopBtn:hover {
+    color: #ffffff;
+}
+
+/* ================= HEADER ================= */
+.header {
+    font-size: 17px;
+    font-weight: 500;
+    margin-bottom: 14px;
+}
+.header span {
+    color: #93c5fd;
+}
+
+/* ================= SUMMARY ================= */
+.breakdownBox {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    background: #020617;
+    border: 1px solid #1f2937;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+    font-size: 13px;
+}
+
+.finalStock {
+    grid-column: 1 / -1;
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+/* ================= FILTER BAR (SEARCH + DATE) ================= */
+.filterBar {
+    display: grid;
+    grid-template-columns: 1fr 140px 140px;
+    gap: 10px;
+    margin-bottom: 14px;
+    align-items: center;
+}
+
+/* ================= SEARCH WRAPPER (CHIPS) ================= */
+.searchWrapper {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #020617;
+    border: 1px solid #1f2937;
+    border-radius: 999px;
+    min-height: 40px;
+}
+
+/* SEARCH INPUT */
+.searchWrapper input {
+    flex: 1;
+    min-width: 140px;
+    background: transparent;
+    border: none;
+    color: #e5e7eb;
+    font-size: 13px;
+    outline: none;
+}
+.searchWrapper input::placeholder {
+    color: #64748b;
+}
+
+/* ================= CHIP ================= */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(148, 163, 184, 0.15);
+    color: #e5e7eb;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.chip button {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+}
+.chip button:hover {
+    color: #ffffff;
+}
+
+/* ================= DATE INPUT ================= */
+.dateInput {
+    height: 40px;
+    background: #020617;
+    border: 1px solid #1f2937;
+    border-radius: 10px;
+    padding: 0 10px;
+    font-size: 13px;
+    color: #e5e7eb;
+}
+
+.dateInput::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+    cursor: pointer;
+}
+
+/* ================= TABLE WRAPPER ================= */
+.tableWrapper {
+    max-height: 420px;
+    overflow-y: auto;
+    border-radius: 12px;
+    border: 1px solid #1f2937;
+}
+
+/* ================= TABLE ================= */
+.logTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+/* STICKY HEADER */
+.logTable thead th {
+    position: sticky;
+    top: 0;
+    background: #020617;
+    z-index: 2;
+    font-weight: 500;
+    color: #cbd5f5;
+}
+
+/* CELLS */
+.logTable th,
+.logTable td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #1f2937;
+    white-space: nowrap;
+}
+
+/* ROW HOVER */
+.logTable tbody tr:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* ================= STATUS ================= */
+.status {
+    text-align: center;
+    padding: 20px;
+    color: #94a3b8;
+}
+
+/* ================= TAGS ================= */
+.statusTag {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.dispatch {
+    background: rgba(59, 130, 246, 0.18);
+    color: #93c5fd;
+}
+.damage {
+    background: rgba(239, 68, 68, 0.18);
+    color: #fca5a5;
+}
+.return {
+    background: rgba(34, 197, 94, 0.18);
+    color: #86efac;
+}
+.recover {
+    background: rgba(234, 179, 8, 0.18);
+    color: #fde047;
+}
+
+/* ================= SCROLLBAR ================= */
+.tableWrapper::-webkit-scrollbar {
+    width: 8px;
+}
+.tableWrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+.tableWrapper::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.35);
+    border-radius: 10px;
+}
+.tableWrapper::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.6);
+}

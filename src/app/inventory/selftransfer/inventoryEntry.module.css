@@ -1,0 +1,161 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.7);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+}
+
+.panel {
+    width: 520px;
+    background: linear-gradient(180deg, #0b1220, #050914);
+    border-radius: 18px;
+    padding: 26px;
+    color: #e5e7eb;
+    position: relative;
+    box-shadow: 0 40px 120px rgba(0,0,0,0.6);
+}
+
+.close {
+    position: absolute;
+    right: 18px;
+    top: 16px;
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.header {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.subHeader {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-bottom: 18px;
+}
+
+.field {
+    margin-bottom: 14px;
+}
+
+.label {
+    font-size: 13px;
+    color: #c7d2fe;
+    margin-bottom: 6px;
+    display: block;
+}
+
+.input {
+    width: 100%;
+    padding: 11px 12px;
+    background: #020617;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    color: #e5e7eb;
+}
+
+.input:focus {
+    outline: none;
+    border-color: #6366f1;
+}
+
+.templateRow {
+    margin-bottom: 16px;
+}
+
+.linkBtn {
+    background: none;
+    border: none;
+    color: #a5b4fc;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.fileBox {
+    background: #020617;
+    border: 1px dashed #1e293b;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fileBox input {
+    color: #c7d2fe;
+}
+
+.fileName {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.suggestWrap {
+    position: relative;
+}
+
+.suggestBox {
+    position: absolute;
+    top: calc(100% + 6px);
+    width: 100%;
+    background: #020617;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    z-index: 20;
+}
+
+.suggestItem {
+    padding: 10px 12px;
+    cursor: pointer;
+}
+
+.suggestItem:hover {
+    background: #111827;
+}
+
+.primary {
+    display: block;
+    font-size: 14px;
+}
+
+.secondary {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 18px;
+}
+
+.submit {
+    width: 260px;
+    padding: 12px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.msg {
+    margin-top: 12px;
+    text-align: center;
+    color: #a5b4fc;
+    font-size: 13px;
+}

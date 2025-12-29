@@ -1,0 +1,173 @@
+/* ================== ROOT ================== */
+.container {
+    padding: 16px;
+    color: #e5e7eb;
+}
+
+/* ================== FILTER BAR ================== */
+.filterBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    background: #020617;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #1e293b;
+    margin-bottom: 12px;
+}
+
+/* ================== SEARCH ================== */
+.searchWrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #0b1220;
+    padding: 6px 10px;
+    border-radius: 10px;
+    max-width: 480px;
+}
+
+.searchInput {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #e5e7eb;
+    min-width: 200px;
+    font-size: 13px;
+}
+
+/* ================== DATE FILTER ================== */
+.dateFilter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dateFilter input {
+    background: #0b1220;
+    border: 1px solid #1e293b;
+    color: #e5e7eb;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+/* ================== TABLE WRAPPER (SCROLL ENABLED) ================== */
+.tableWrapper {
+    width: 100%;
+    max-height: 78vh;          /* REQUIRED for vertical scroll */
+    overflow-x: auto;          /* horizontal scroll */
+    overflow-y: auto;          /* vertical scroll */
+    border-radius: 12px;
+    background: #020617;
+    border: 1px solid #1e293b;
+}
+
+/* ================== SCROLLBAR ================== */
+.tableWrapper::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 10px;
+}
+
+.tableWrapper::-webkit-scrollbar-track {
+    background: #020617;
+}
+
+/* ================== TABLE ================== */
+.orderTable {
+    width: 100%;
+    min-width: 1200px;   /* forces horizontal scroll */
+    border-collapse: collapse;
+    background: #020617;
+}
+
+/* ================== HEADER ================== */
+.orderTable thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #020617;
+    color: #e5e7eb;
+    padding: 12px;
+    font-size: 13px;
+    text-align: left;
+    border-bottom: 2px solid #334155;
+    white-space: nowrap;
+}
+
+/* ================== BODY ================== */
+.orderTable tbody td {
+    padding: 12px;
+    font-size: 13px;
+    color: #e5e7eb;
+    border-bottom: 1px solid #0f172a;
+    white-space: nowrap;
+}
+
+/* ================== STATUS ================== */
+.statusBadge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    background: #1e293b;
+}
+
+/* ================== PAGINATION ================== */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 8px;
+}
+/* Center loader */
+.centerLoader {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #e5e7eb;
+    border-top-color: #111827;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Success toast */
+.successToast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #16a34a;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    z-index: 9999;
+}
+.fullPage {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+}

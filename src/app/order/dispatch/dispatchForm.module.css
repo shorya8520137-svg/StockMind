@@ -1,0 +1,235 @@
+/* ---------------- PAGE ---------------- */
+.page {
+    height: calc(100vh - 20px);
+    overflow-y: auto;
+    padding: 32px 40px 60px;
+    background: linear-gradient(135deg, #050814, #0b1224);
+    color: #ffffff;
+    font-family: "Segoe UI", sans-serif;
+}
+
+/* Custom Scrollbar (Modern Dark) */
+.page::-webkit-scrollbar {
+    width: 8px;
+}
+
+.page::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.page::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #2f80ed, #56ccf2);
+    border-radius: 8px;
+}
+
+.page::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #56ccf2, #2f80ed);
+}
+
+/* ---------------- TITLE ---------------- */
+.title {
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    margin-bottom: 28px;
+    position: relative;
+    padding-bottom: 10px;
+}
+
+/* Underline glow */
+.title::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 80px;
+    height: 3px;
+    background: linear-gradient(90deg, #4da3ff, transparent);
+    border-radius: 4px;
+}
+
+/* ---------------- GRID ---------------- */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+/* Dimensions in one row */
+.dimGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+}
+
+/* ---------------- INPUTS ---------------- */
+.page input,
+.page select,
+.page textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.09),
+            rgba(255, 255, 255, 0.04)
+    );
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    outline: none;
+    transition: all 0.25s ease;
+}
+
+.page input::placeholder,
+.page textarea::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.page input:focus,
+.page select:focus,
+.page textarea:focus {
+    border-color: #4da3ff;
+    box-shadow: 0 0 0 2px rgba(77, 163, 255, 0.15);
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* Dropdown option visibility */
+.page select option {
+    background: #0e162b;
+    color: #ffffff;
+}
+
+/* ---------------- REMARKS ---------------- */
+.remarks {
+    margin-top: 18px;
+    min-height: 110px;
+    resize: vertical;
+}
+
+/* ---------------- SECTION ---------------- */
+.section {
+    margin-top: 32px;
+    margin-bottom: 14px;
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+}
+
+/* ---------------- PRODUCTS ---------------- */
+.productRow {
+    display: grid;
+    grid-template-columns: 1fr 100px 40px;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.searchBox {
+    position: relative;
+}
+
+/* Suggestions dropdown */
+.suggestions {
+    position: absolute;
+    top: 46px;
+    left: 0;
+    right: 0;
+    background: #0e162b;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 30;
+}
+
+/* Suggestions scrollbar */
+.suggestions::-webkit-scrollbar {
+    width: 6px;
+}
+
+.suggestions::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+}
+
+.suggestions div {
+    padding: 9px 12px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.suggestions div:hover {
+    background: rgba(77, 163, 255, 0.18);
+}
+
+/* Remove product */
+.productRow button {
+    background: transparent;
+    border: none;
+    color: #ff6b6b;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+/* ---------------- BUTTONS ---------------- */
+.addBtn {
+    margin-top: 14px;
+    padding: 11px 18px;
+    background: transparent;
+    border: 1px dashed #4da3ff;
+    color: #4da3ff;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.addBtn:hover {
+    background: rgba(77, 163, 255, 0.12);
+}
+
+/* Submit button – premium center */
+.submit {
+    display: block;
+    margin: 36px auto 0;
+    padding: 14px 40px;
+    background: linear-gradient(135deg, #4da3ff, #56ccf2);
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #000;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(77, 163, 255, 0.35);
+    transition: all 0.25s ease;
+}
+
+.submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(77, 163, 255, 0.45);
+}
+
+/* ---------------- RESPONSIVE ---------------- */
+@media (max-width: 1024px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dimGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dimGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .productRow {
+        grid-template-columns: 1fr;
+    }
+}
