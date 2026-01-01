@@ -11,24 +11,73 @@ async function setupDatabase() {
         port: process.env.DB_PORT,
         user: process.env.DB_USER,
         password: process.env.DB_PASSWORD,
-        database: process.env.DB_NAME,
-        multipleStatements: true
+        database: process.env.DB_NAME
     });
 
     try {
         console.log('✅ Connected to database');
 
-        // Read and execute the SQL setup file
+        // Read the SQL setup file
         const sqlFile = path.join(__dirname, 'database-setup.sql');
         const sql = fs.readFileSync(sqlFile, 'utf8');
 
         console.log('📋 Executing database setup script...');
-        await connection.execute(sql);
+
+        // Split SQL into individual statements and filter
+        const allStatements = sql
+            .split(';')
+            .map(stmt => stmt.trim())
+            .filter(stmt => 
+                stmt.length > 10 && 
+                !stmt.startsWith('--') && 
+                !stmt.startsWith('/*') &&
+                stmt !== 'USE inventory'
+            );
+
+        // Separate CREATE TABLE statements from INSERT statements
+        const createStatements = allStatements.filter(stmt => 
+            stmt.toUpperCase().includes('CREATE TABLE')
+        );
+        
+        const insertStatements = allStatements.filter(stmt => 
+            stmt.toUpperCase().includes('INSERT')
+        );
+
+        // Execute CREATE TABLE statements first
+        console.log('📋 Creating tables...');
+        for (const statement of createStatements) {
+            try {
+                await connection.execute(statement);
+                const tableName = statement.match(/CREATE TABLE.*?(\w+)/i)?.[1];
+                console.log(`   ✓ Created table: ${tableName}`);
+            } catch (error) {
+                if (!error.message.includes('already exists')) {
+                    console.error(`   ❌ Error creating table: ${error.message}`);
+                }
+            }
+        }
+
+        // Execute INSERT statements after all tables are created
+        console.log('📋 Inserting data...');
+        for (const statement of insertStatements) {
+            try {
+                await connection.execute(statement);
+                const match = statement.match(/INSERT.*?INTO\s+(\w+)/i);
+                if (match) {
+                    console.log(`   ✓ Inserted data into: ${match[1]}`);
+                }
+            } catch (error) {
+                if (!error.message.includes('Duplicate entry')) {
+                    console.error(`   ❌ Error inserting data: ${error.message}`);
+                }
+            }
+        }
 
         console.log('\n🎉 Database setup completed successfully!');
         console.log('\n📊 Summary:');
         console.log('   ✓ Tables created: roles, permissions, users, role_permissions, audit_logs');
         console.log('   ✓ Tables created: inventory, orders, dispatches, channels, messages');
+        console.log('   ✓ Tables created: damage_recovery, returns, transfers');
         console.log('   ✓ Default roles inserted: 6 roles with hierarchical permissions');
         console.log('   ✓ Default permissions inserted: 35+ granular permissions');
         console.log('   ✓ Default users created: 5 test users');

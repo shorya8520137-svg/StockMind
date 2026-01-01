@@ -6,7 +6,7 @@ const dbConfig = {
     port: process.env.DB_PORT || 3306,
     user: process.env.DB_USER || 'admin',
     password: process.env.DB_PASSWORD || 'gfx998sd',
-    database: process.env.DB_NAME || 'hunyhuny_auto_dispatch',
+    database: process.env.DB_NAME || 'inventory',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
