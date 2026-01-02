@@ -506,8 +506,95 @@ class ProductController {
         }
     }
 
+    // Download template for bulk import
+    static async downloadTemplate(req, res) {
+        try {
+            const templateData = [
+                {
+                    product_name: 'Sample Baby Wear',
+                    product_variant: 'Size - 6-12m',
+                    barcode: 'SAMPLE-001',
+                    description: 'Sample baby clothing item',
+                    category_id: 1,
+                    price: 25.99,
+                    cost_price: 15.00,
+                    weight: 0.2,
+                    dimensions: '10x8x2'
+                },
+                {
+                    product_name: 'Sample Baby Toy',
+                    product_variant: 'Red Color',
+                    barcode: 'SAMPLE-002',
+                    description: 'Educational baby toy',
+                    category_id: 4,
+                    price: 12.50,
+                    cost_price: 8.00,
+                    weight: 0.15,
+                    dimensions: '15x10x5'
+                }
+            ];
+
+            // Create workbook
+            const workbook = XLSX.utils.book_new();
+            const worksheet = XLSX.utils.json_to_sheet(templateData);
+
+            // Add column widths
+            worksheet['!cols'] = [
+                { width: 25 }, // product_name
+                { width: 15 }, // product_variant
+                { width: 15 }, // barcode
+                { width: 30 }, // description
+                { width: 12 }, // category_id
+                { width: 10 }, // price
+                { width: 12 }, // cost_price
+                { width: 10 }, // weight
+                { width: 15 }  // dimensions
+            ];
+
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Products Template');
+
+            // Generate buffer
+            const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+            res.setHeader('Content-Disposition', 'attachment; filename=products_template.xlsx');
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.send(buffer);
+
     // Create category
     static async createCategory(req, res) {
+        try {
+            const { name, display_name, description, parent_id } = req.body;
+
+            if (!name || !display_name) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Name and display name are required'
+                });
+            }
+
+            const [result] = await db.execute(`
+                INSERT INTO product_categories (name, display_name, description, parent_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, NOW(), NOW())
+            `, [name, display_name, description, parent_id]);
+
+            res.json({
+                success: true,
+                message: 'Category created successfully',
+                data: {
+                    id: result.insertId,
+                    name,
+                    display_name
+                }
+            });
+
+        } catch (error) {
+            console.error('Create category error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Internal server error'
+            });
+        }
+    }
         try {
             const { name, display_name, description, parent_id } = req.body;
 

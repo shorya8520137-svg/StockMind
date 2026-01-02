@@ -69,6 +69,12 @@ router.post('/bulk/import',
     ProductController.bulkImport
 );
 
+// Download template
+router.get('/bulk/template', 
+    permissionMiddleware('products.view'),
+    ProductController.downloadTemplate
+);
+
 // Category management
 router.get('/categories/all', 
     permissionMiddleware('products.view'),
