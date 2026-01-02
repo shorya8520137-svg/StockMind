@@ -73,15 +73,18 @@ async function setupDatabase() {
         );
 
         // Execute CREATE TABLE statements first
-        console.log('📋 Creating tables...');
+        console.log(`📋 Creating tables... Found ${createStatements.length} CREATE statements`);
         for (const statement of createStatements) {
             try {
-                await connection.execute(statement);
                 const tableName = statement.match(/CREATE TABLE.*?(\w+)/i)?.[1];
-                console.log(`   ✓ Created table: ${tableName}`);
+                console.log(`   🔄 Creating table: ${tableName}`);
+                console.log(`   📝 Statement: ${statement.substring(0, 100)}...`);
+                await connection.execute(statement);
+                console.log(`   ✅ Created table: ${tableName}`);
             } catch (error) {
                 if (!error.message.includes('already exists')) {
                     console.error(`   ❌ Error creating table: ${error.message}`);
+                    console.error(`   📝 Failed statement: ${statement.substring(0, 200)}...`);
                 }
             }
         }
@@ -115,17 +118,35 @@ async function setupDatabase() {
         
         // 3. Insert users (depends on roles)
         console.log(`📋 Processing ${userInserts.length} user INSERT statements...`);
-        for (const statement of userInserts) {
-            try {
-                console.log(`   🔄 Executing user insert: ${statement.substring(0, 50)}...`);
-                await connection.execute(statement);
-                console.log(`   ✅ Inserted user data`);
-            } catch (error) {
-                if (!error.message.includes('Duplicate entry')) {
-                    console.error(`   ❌ Error inserting users: ${error.message}`);
-                    console.error(`   📝 Full statement: ${statement}`);
+        
+        // First, verify that the users table exists
+        try {
+            const [tables] = await connection.execute("SHOW TABLES LIKE 'users'");
+            if (tables.length === 0) {
+                console.error('❌ CRITICAL: users table does not exist! Skipping user inserts.');
+                console.log('📋 Available tables:');
+                const [allTables] = await connection.execute("SHOW TABLES");
+                allTables.forEach(table => {
+                    console.log(`   - ${Object.values(table)[0]}`);
+                });
+            } else {
+                console.log('✅ users table exists, proceeding with inserts...');
+                
+                for (const statement of userInserts) {
+                    try {
+                        console.log(`   🔄 Executing user insert: ${statement.substring(0, 50)}...`);
+                        await connection.execute(statement);
+                        console.log(`   ✅ Inserted user data`);
+                    } catch (error) {
+                        if (!error.message.includes('Duplicate entry')) {
+                            console.error(`   ❌ Error inserting users: ${error.message}`);
+                            console.error(`   📝 Full statement: ${statement}`);
+                        }
+                    }
                 }
             }
+        } catch (error) {
+            console.error('❌ Error checking for users table:', error.message);
         }
         
         // 4. Insert role permissions (depends on roles and permissions)
