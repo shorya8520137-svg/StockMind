@@ -1,8 +1,11 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import dynamicImport from "next/dynamic";
 
-const Dashboard = dynamic(
+// Disable static generation for this page
+export const dynamic = 'force-dynamic';
+
+const Dashboard = dynamicImport(
     () => import("./Dashboard"),
     { ssr: false }
 );

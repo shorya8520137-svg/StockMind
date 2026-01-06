@@ -1,4 +1,7 @@
-import InventorySheet from "./InventorySheet"
+import InventorySheet from "./InventorySheet.jsx"
+
+// Disable static generation for this page
+export const dynamic = 'force-dynamic';
 
 export default function InventoryPage() {
     return (

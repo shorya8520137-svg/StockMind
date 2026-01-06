@@ -1,633 +1,1474 @@
 const db = require('../db/connection');
-const multer = require('multer');
 const csv = require('csv-parser');
 const XLSX = require('xlsx');
 const fs = require('fs');
 
 class ProductController {
-    // Get all products with pagination and search
-    static async getAllProducts(req, res) {
-        try {
-            const { 
-                page = 1, 
-                limit = 50, 
-                search = '', 
-                category = '', 
-                sortBy = 'product_name',
-                sortOrder = 'ASC' 
-            } = req.query;
 
-            const offset = (page - 1) * limit;
-            let whereClause = 'WHERE 1=1';
-            const params = [];
+    // ===============================
+    // GET PRODUCTS WITH INVENTORY
+    // ===============================
+    static getAllProducts(req, res) {
+        const page = parseInt(req.query.page || 1);
+        const limit = parseInt(req.query.limit || 20);
+        const search = req.query.search || '';
+        const category = req.query.category || '';
+        const offset = (page - 1) * limit;
 
-            if (search) {
-                whereClause += ' AND (p.product_name LIKE ? OR p.barcode LIKE ? OR p.product_variant LIKE ?)';
-                params.push(`%${search}%`, `%${search}%`, `%${search}%`);
-            }
+        let where = 'WHERE p.is_active = 1';
+        const params = [];
 
-            if (category) {
-                whereClause += ' AND c.name = ?';
-                params.push(category);
-            }
-
-            const query = `
-                SELECT 
-                    p.p_id,
-                    p.product_name,
-                    p.product_variant,
-                    p.barcode,
-                    p.description,
-                    p.price,
-                    p.cost_price,
-                    p.weight,
-                    p.dimensions,
-                    p.is_active,
-                    p.created_at,
-                    p.updated_at,
-                    c.name as category_name,
-                    c.display_name as category_display_name
-                FROM dispatch_product p
-                LEFT JOIN product_categories c ON p.category_id = c.id
-                ${whereClause}
-                ORDER BY p.${sortBy} ${sortOrder}
-                LIMIT ? OFFSET ?
-            `;
-
-            params.push(parseInt(limit), parseInt(offset));
-            const [products] = await db.execute(query, params);
-
-            // Get total count
-            const countQuery = `
-                SELECT COUNT(*) as total
-                FROM dispatch_product p
-                LEFT JOIN product_categories c ON p.category_id = c.id
-                ${whereClause}
-            `;
-            const [countResult] = await db.execute(countQuery, params.slice(0, -2));
-            const total = countResult[0].total;
-
-            res.json({
-                success: true,
-                data: {
-                    products,
-                    pagination: {
-                        page: parseInt(page),
-                        limit: parseInt(limit),
-                        total,
-                        pages: Math.ceil(total / limit)
-                    }
-                }
-            });
-
-        } catch (error) {
-            console.error('Get products error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error'
-            });
+        if (search) {
+            where += ' AND (p.product_name LIKE ? OR p.barcode LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`);
         }
-    }
 
-    // Get single product by ID or barcode
-    static async getProduct(req, res) {
-        try {
-            const { identifier } = req.params;
-            const isNumeric = /^\d+$/.test(identifier);
-            
-            const query = `
-                SELECT 
-                    p.*,
-                    c.name as category_name,
-                    c.display_name as category_display_name
-                FROM dispatch_product p
-                LEFT JOIN product_categories c ON p.category_id = c.id
-                WHERE ${isNumeric ? 'p.p_id = ?' : 'p.barcode = ?'}
-            `;
-
-            const [products] = await db.execute(query, [identifier]);
-
-            if (products.length === 0) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Product not found'
-                });
-            }
-
-            res.json({
-                success: true,
-                data: products[0]
-            });
-
-        } catch (error) {
-            console.error('Get product error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error'
-            });
+        if (category) {
+            where += ' AND c.name = ?';
+            params.push(category);
         }
-    }
 
-    // Create single product
-    static async createProduct(req, res) {
-        try {
-            const {
-                product_name,
-                product_variant,
-                barcode,
-                description,
-                category_id,
-                price,
-                cost_price,
-                weight,
-                dimensions
-            } = req.body;
+        const dataSql = `
+            SELECT 
+                p.p_id,
+                p.product_name,
+                p.product_variant,
+                p.barcode,
+                p.price,
+                p.cost_price,
+                p.weight,
+                p.dimensions,
+                p.description,
+                p.category_id,
+                p.created_at,
+                c.display_name AS category_display_name,
+                COALESCE(SUM(i.stock), 0) as total_stock,
+                COUNT(DISTINCT i.warehouse) as warehouse_count
+            FROM dispatch_product p
+            LEFT JOIN product_categories c ON p.category_id = c.id
+            LEFT JOIN inventory i ON p.barcode = i.code
+            ${where}
+            GROUP BY p.p_id, p.product_name, p.product_variant, p.barcode, p.price, p.cost_price, p.weight, p.dimensions, p.description, p.category_id, p.created_at, c.display_name
+            ORDER BY p.created_at DESC
+            LIMIT ? OFFSET ?
+        `;
 
-            if (!product_name || !barcode) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Product name and barcode are required'
+        const countSql = `
+            SELECT COUNT(DISTINCT p.p_id) AS total
+            FROM dispatch_product p
+            LEFT JOIN product_categories c ON p.category_id = c.id
+            ${where}
+        `;
+
+        db.query(dataSql, [...params, limit, offset], (err, rows) => {
+            if (err) {
+                console.error('getAllProducts:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to fetch products' 
                 });
             }
 
-            // Check if barcode already exists
-            const [existing] = await db.execute(
-                'SELECT p_id FROM dispatch_product WHERE barcode = ?',
-                [barcode]
-            );
-
-            if (existing.length > 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Product with this barcode already exists'
-                });
-            }
-
-            const [result] = await db.execute(`
-                INSERT INTO dispatch_product (
-                    product_name, product_variant, barcode, description,
-                    category_id, price, cost_price, weight, dimensions,
-                    created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-            `, [
-                product_name, product_variant, barcode, description,
-                category_id, price, cost_price, weight, dimensions
-            ]);
-
-            // Log activity
-            await db.execute(`
-                INSERT INTO audit_logs (user_id, action, resource, resource_id, details, ip_address, user_agent)
-                VALUES (?, 'CREATE', 'PRODUCTS', ?, ?, ?, ?)
-            `, [
-                req.user.userId,
-                result.insertId,
-                JSON.stringify({ product_name, barcode, category_id }),
-                req.ip,
-                req.get('User-Agent')
-            ]);
-
-            res.json({
-                success: true,
-                message: 'Product created successfully',
-                data: {
-                    p_id: result.insertId,
-                    product_name,
-                    barcode
-                }
-            });
-
-        } catch (error) {
-            console.error('Create product error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error'
-            });
-        }
-    }
-
-    // Update product
-    static async updateProduct(req, res) {
-        try {
-            const { id } = req.params;
-            const {
-                product_name,
-                product_variant,
-                barcode,
-                description,
-                category_id,
-                price,
-                cost_price,
-                weight,
-                dimensions,
-                is_active
-            } = req.body;
-
-            // Check if product exists
-            const [existing] = await db.execute(
-                'SELECT * FROM dispatch_product WHERE p_id = ?',
-                [id]
-            );
-
-            if (existing.length === 0) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Product not found'
-                });
-            }
-
-            // Check if barcode is being changed and if new barcode exists
-            if (barcode && barcode !== existing[0].barcode) {
-                const [barcodeCheck] = await db.execute(
-                    'SELECT p_id FROM dispatch_product WHERE barcode = ? AND p_id != ?',
-                    [barcode, id]
-                );
-
-                if (barcodeCheck.length > 0) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Product with this barcode already exists'
+            db.query(countSql, params, (err2, countRows) => {
+                if (err2) {
+                    console.error('countProducts:', err2);
+                    return res.status(500).json({ 
+                        success: false, 
+                        message: 'Failed to count products' 
                     });
                 }
+
+                res.json({
+                    success: true,
+                    data: {
+                        products: rows,
+                        pagination: {
+                            page,
+                            limit,
+                            total: countRows[0].total,
+                            pages: Math.ceil(countRows[0].total / limit)
+                        }
+                    }
+                });
+            });
+        });
+    }
+
+    // ===============================
+    // GET WAREHOUSES
+    // ===============================
+    static getWarehouses(req, res) {
+        db.query(
+            'SELECT w_id, warehouse_code, Warehouse_name, address FROM dispatch_warehouse ORDER BY Warehouse_name',
+            (err, rows) => {
+                if (err) {
+                    console.error('getWarehouses:', err);
+                    return res.status(500).json({ 
+                        success: false, 
+                        message: 'Failed to fetch warehouses' 
+                    });
+                }
+                res.json({ success: true, data: rows });
+            }
+        );
+    }
+
+    // ===============================
+    // GET STORES
+    // ===============================
+    static getStores(req, res) {
+        db.query(
+            'SELECT id, store_code, store_name, city, state FROM stores WHERE is_active = 1 ORDER BY store_name',
+            (err, rows) => {
+                if (err) {
+                    console.error('getStores:', err);
+                    return res.status(500).json({ 
+                        success: false, 
+                        message: 'Failed to fetch stores' 
+                    });
+                }
+                res.json({ success: true, data: rows });
+            }
+        );
+    }
+
+    // ===============================
+    // CREATE PRODUCT
+    // ===============================
+    static createProduct(req, res) {
+        const {
+            product_name,
+            product_variant,
+            barcode,
+            description,
+            category_id,
+            price,
+            cost_price,
+            weight,
+            dimensions
+        } = req.body;
+
+        if (!product_name || !barcode) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Product name and barcode are required' 
+            });
+        }
+
+        const sql = `
+            INSERT INTO dispatch_product
+            (product_name, product_variant, barcode, description, category_id, price, cost_price, weight, dimensions)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        db.query(sql, [
+            product_name,
+            product_variant || null,
+            barcode,
+            description || null,
+            category_id || null,
+            price || null,
+            cost_price || null,
+            weight || null,
+            dimensions || null
+        ], (err) => {
+            if (err) {
+                console.error('createProduct:', err);
+                if (err.code === 'ER_DUP_ENTRY') {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: 'Barcode already exists' 
+                    });
+                }
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to create product' 
+                });
             }
 
-            await db.execute(`
-                UPDATE dispatch_product SET
-                    product_name = COALESCE(?, product_name),
-                    product_variant = COALESCE(?, product_variant),
-                    barcode = COALESCE(?, barcode),
-                    description = COALESCE(?, description),
-                    category_id = COALESCE(?, category_id),
-                    price = COALESCE(?, price),
-                    cost_price = COALESCE(?, cost_price),
-                    weight = COALESCE(?, weight),
-                    dimensions = COALESCE(?, dimensions),
-                    is_active = COALESCE(?, is_active),
-                    updated_at = NOW()
-                WHERE p_id = ?
-            `, [
-                product_name, product_variant, barcode, description,
-                category_id, price, cost_price, weight, dimensions,
-                is_active, id
-            ]);
+            res.json({ 
+                success: true, 
+                message: 'Product created successfully' 
+            });
+        });
+    }
 
-            // Log activity
-            await db.execute(`
-                INSERT INTO audit_logs (user_id, action, resource, resource_id, details, ip_address, user_agent)
-                VALUES (?, 'UPDATE', 'PRODUCTS', ?, ?, ?, ?)
-            `, [
-                req.user.userId,
-                id,
-                JSON.stringify({ 
-                    old: existing[0], 
-                    new: { product_name, barcode, category_id } 
-                }),
-                req.ip,
-                req.get('User-Agent')
-            ]);
+    // ===============================
+    // UPDATE PRODUCT
+    // ===============================
+    static updateProduct(req, res) {
+        const { id } = req.params;
+        const {
+            product_name,
+            product_variant,
+            barcode,
+            description,
+            category_id,
+            price,
+            cost_price,
+            weight,
+            dimensions
+        } = req.body;
+
+        if (!product_name || !barcode) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Product name and barcode are required' 
+            });
+        }
+
+        const sql = `
+            UPDATE dispatch_product SET
+                product_name = ?,
+                product_variant = ?,
+                barcode = ?,
+                description = ?,
+                category_id = ?,
+                price = ?,
+                cost_price = ?,
+                weight = ?,
+                dimensions = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE p_id = ?
+        `;
+
+        db.query(sql, [
+            product_name,
+            product_variant || null,
+            barcode,
+            description || null,
+            category_id || null,
+            price || null,
+            cost_price || null,
+            weight || null,
+            dimensions || null,
+            id
+        ], (err, result) => {
+            if (err) {
+                console.error('updateProduct:', err);
+                if (err.code === 'ER_DUP_ENTRY') {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: 'Barcode already exists' 
+                    });
+                }
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to update product' 
+                });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'Product not found' 
+                });
+            }
+
+            res.json({ 
+                success: true, 
+                message: 'Product updated successfully' 
+            });
+        });
+    }
+
+    // ===============================
+    // DELETE PRODUCT
+    // ===============================
+    static deleteProduct(req, res) {
+        const { id } = req.params;
+
+        db.query(
+            'UPDATE dispatch_product SET is_active = 0 WHERE p_id = ?',
+            [id],
+            (err, result) => {
+                if (err) {
+                    console.error('deleteProduct:', err);
+                    return res.status(500).json({ 
+                        success: false, 
+                        message: 'Failed to delete product' 
+                    });
+                }
+
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ 
+                        success: false, 
+                        message: 'Product not found' 
+                    });
+                }
+
+                res.json({ 
+                    success: true, 
+                    message: 'Product deleted successfully' 
+                });
+            }
+        );
+    }
+
+    // ===============================
+    // SEARCH PRODUCT BY BARCODE
+    // ===============================
+    static searchByBarcode(req, res) {
+        const { barcode } = req.params;
+
+        if (!barcode) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Barcode is required' 
+            });
+        }
+
+        const sql = `
+            SELECT 
+                p.p_id,
+                p.product_name,
+                p.product_variant,
+                p.barcode,
+                p.price,
+                p.cost_price,
+                p.weight,
+                p.dimensions,
+                p.description,
+                p.category_id,
+                p.created_at,
+                c.display_name AS category_display_name,
+                COALESCE(SUM(i.stock), 0) as total_stock,
+                COUNT(DISTINCT i.warehouse) as warehouse_count
+            FROM dispatch_product p
+            LEFT JOIN product_categories c ON p.category_id = c.id
+            LEFT JOIN inventory i ON p.barcode = i.code
+            WHERE p.barcode = ? AND p.is_active = 1
+            GROUP BY p.p_id, p.product_name, p.product_variant, p.barcode, p.price, p.cost_price, p.weight, p.dimensions, p.description, p.category_id, p.created_at, c.display_name
+        `;
+
+        db.query(sql, [barcode], (err, rows) => {
+            if (err) {
+                console.error('searchByBarcode:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to search product' 
+                });
+            }
+
+            if (rows.length === 0) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'Product not found with this barcode' 
+                });
+            }
 
             res.json({
                 success: true,
-                message: 'Product updated successfully'
+                data: rows[0]
             });
-
-        } catch (error) {
-            console.error('Update product error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error'
-            });
-        }
+        });
     }
 
-    // Delete product
-    static async deleteProduct(req, res) {
-        try {
-            const { id } = req.params;
+    // ===============================
+    // TRANSFER PRODUCT TO INVENTORY
+    // ===============================
+    static transferProduct(req, res) {
+        const {
+            product_id,
+            product_name,
+            barcode,
+            product_variant,
+            quantity,
+            warehouse_code,
+            store_code,
+            location_type, // 'warehouse' or 'store'
+            notes
+        } = req.body;
 
-            const [existing] = await db.execute(
-                'SELECT * FROM dispatch_product WHERE p_id = ?',
-                [id]
-            );
+        if (!product_id || !barcode || !quantity || quantity <= 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Product ID, barcode and valid quantity are required' 
+            });
+        }
 
-            if (existing.length === 0) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Product not found'
+        if (!warehouse_code && !store_code) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Either warehouse or store must be selected' 
+            });
+        }
+
+        // Determine the location details
+        let locationName = '';
+        let locationCode = '';
+
+        if (location_type === 'warehouse' && warehouse_code) {
+            locationName = warehouse_code;
+            locationCode = warehouse_code;
+        } else if (location_type === 'store' && store_code) {
+            locationName = store_code;
+            locationCode = store_code;
+        }
+
+        // Check if inventory record already exists
+        const checkSql = `
+            SELECT id, stock FROM inventory 
+            WHERE code = ? AND warehouse = ? AND warehouse_code = ?
+        `;
+
+        db.query(checkSql, [barcode, locationName, locationCode], (err, existing) => {
+            if (err) {
+                console.error('checkInventory:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to check existing inventory' 
                 });
             }
 
-            // Soft delete
-            await db.execute(
-                'UPDATE dispatch_product SET is_active = 0, updated_at = NOW() WHERE p_id = ?',
-                [id]
-            );
+            if (existing.length > 0) {
+                // Update existing inventory
+                const updateSql = `
+                    UPDATE inventory SET
+                        stock = stock + ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                `;
 
-            // Log activity
-            await db.execute(`
-                INSERT INTO audit_logs (user_id, action, resource, resource_id, details, ip_address, user_agent)
-                VALUES (?, 'DELETE', 'PRODUCTS', ?, ?, ?, ?)
-            `, [
-                req.user.userId,
-                id,
-                JSON.stringify({ product_name: existing[0].product_name, barcode: existing[0].barcode }),
-                req.ip,
-                req.get('User-Agent')
-            ]);
+                db.query(updateSql, [quantity, existing[0].id], (updateErr) => {
+                    if (updateErr) {
+                        console.error('updateInventory:', updateErr);
+                        return res.status(500).json({ 
+                            success: false, 
+                            message: 'Failed to update inventory' 
+                        });
+                    }
 
-            res.json({
-                success: true,
-                message: 'Product deleted successfully'
-            });
-
-        } catch (error) {
-            console.error('Delete product error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error'
-            });
-        }
-    }
-
-    // Bulk import products (CSV/Excel)
-    static async bulkImport(req, res) {
-        try {
-            if (!req.file) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'No file uploaded'
+                    const newStock = existing[0].stock + quantity;
+                    res.json({ 
+                        success: true, 
+                        message: `Successfully transferred ${quantity} units to ${locationName}. New stock: ${newStock}`,
+                        data: {
+                            inventory_id: existing[0].id,
+                            quantity_added: quantity,
+                            new_stock: newStock,
+                            location: locationName,
+                            location_type
+                        }
+                    });
                 });
-            }
-
-            const filePath = req.file.path;
-            const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
-            let products = [];
-
-            if (fileExtension === 'csv') {
-                // Parse CSV
-                products = await new Promise((resolve, reject) => {
-                    const results = [];
-                    fs.createReadStream(filePath)
-                        .pipe(csv())
-                        .on('data', (data) => results.push(data))
-                        .on('end', () => resolve(results))
-                        .on('error', reject);
-                });
-            } else if (['xlsx', 'xls'].includes(fileExtension)) {
-                // Parse Excel
-                const workbook = XLSX.readFile(filePath);
-                const sheetName = workbook.SheetNames[0];
-                products = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
             } else {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Unsupported file format. Use CSV or Excel files.'
+                // Create new inventory record
+                const insertSql = `
+                    INSERT INTO inventory 
+                    (product, code, variant, warehouse, warehouse_code, stock, opening, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                `;
+
+                db.query(insertSql, [
+                    product_name,
+                    barcode,
+                    product_variant || null,
+                    locationName,
+                    locationCode,
+                    quantity,
+                    quantity // opening stock same as initial stock
+                ], (insertErr, result) => {
+                    if (insertErr) {
+                        console.error('insertInventory:', insertErr);
+                        return res.status(500).json({ 
+                            success: false, 
+                            message: 'Failed to create inventory record' 
+                        });
+                    }
+
+                    res.json({ 
+                        success: true, 
+                        message: `Successfully transferred ${quantity} units to ${locationName}. New inventory created.`,
+                        data: {
+                            inventory_id: result.insertId,
+                            quantity_added: quantity,
+                            new_stock: quantity,
+                            location: locationName,
+                            location_type
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    // ===============================
+    // GET PRODUCT INVENTORY
+    // ===============================
+    static getProductInventory(req, res) {
+        const { barcode } = req.params;
+
+        const sql = `
+            SELECT 
+                i.*,
+                w.Warehouse_name,
+                s.store_name,
+                s.city,
+                s.state
+            FROM inventory i
+            LEFT JOIN dispatch_warehouse w ON i.warehouse_code = w.warehouse_code
+            LEFT JOIN stores s ON i.warehouse_code = s.store_code
+            WHERE i.code = ?
+            ORDER BY i.stock DESC
+        `;
+
+        db.query(sql, [barcode], (err, rows) => {
+            if (err) {
+                console.error('getProductInventory:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to fetch product inventory' 
                 });
             }
 
-            let successCount = 0;
-            let errorCount = 0;
-            const errors = [];
-
-            for (let i = 0; i < products.length; i++) {
-                const product = products[i];
-                try {
-                    // Validate required fields
-                    if (!product.product_name || !product.barcode) {
-                        errors.push(`Row ${i + 1}: Missing product_name or barcode`);
-                        errorCount++;
-                        continue;
-                    }
-
-                    // Check if barcode exists
-                    const [existing] = await db.execute(
-                        'SELECT p_id FROM dispatch_product WHERE barcode = ?',
-                        [product.barcode]
-                    );
-
-                    if (existing.length > 0) {
-                        errors.push(`Row ${i + 1}: Barcode ${product.barcode} already exists`);
-                        errorCount++;
-                        continue;
-                    }
-
-                    // Insert product
-                    await db.execute(`
-                        INSERT INTO dispatch_product (
-                            product_name, product_variant, barcode, description,
-                            category_id, price, cost_price, weight, dimensions,
-                            created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-                    `, [
-                        product.product_name,
-                        product.product_variant || null,
-                        product.barcode,
-                        product.description || null,
-                        product.category_id || null,
-                        product.price || null,
-                        product.cost_price || null,
-                        product.weight || null,
-                        product.dimensions || null
-                    ]);
-
-                    successCount++;
-
-                } catch (error) {
-                    errors.push(`Row ${i + 1}: ${error.message}`);
-                    errorCount++;
-                }
-            }
-
-            // Clean up uploaded file
-            fs.unlinkSync(filePath);
-
-            // Log bulk import activity
-            await db.execute(`
-                INSERT INTO audit_logs (user_id, action, resource, details, ip_address, user_agent)
-                VALUES (?, 'BULK_IMPORT', 'PRODUCTS', ?, ?, ?)
-            `, [
-                req.user.userId,
-                JSON.stringify({ 
-                    total: products.length, 
-                    success: successCount, 
-                    errors: errorCount 
-                }),
-                req.ip,
-                req.get('User-Agent')
-            ]);
+            const totalStock = rows.reduce((sum, item) => sum + item.stock, 0);
 
             res.json({
                 success: true,
-                message: 'Bulk import completed',
                 data: {
-                    total: products.length,
-                    success: successCount,
-                    errors: errorCount,
-                    errorDetails: errors.slice(0, 10) // Limit error details
+                    inventory: rows,
+                    total_stock: totalStock,
+                    locations: rows.length
                 }
             });
+        });
+    }
 
+    // ===============================
+    // BULK TRANSFER PRODUCTS TO INVENTORY
+    // ===============================
+    static bulkTransferProducts(req, res) {
+        const { products, location_type, warehouse_code, store_code, notes } = req.body;
+
+        if (!products || !Array.isArray(products) || products.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Products array is required and cannot be empty' 
+            });
+        }
+
+        if (!warehouse_code && !store_code) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Either warehouse or store must be selected' 
+            });
+        }
+
+        // Determine the location details
+        let locationName = '';
+        let locationCode = '';
+
+        if (location_type === 'warehouse' && warehouse_code) {
+            locationName = warehouse_code;
+            locationCode = warehouse_code;
+        } else if (location_type === 'store' && store_code) {
+            locationName = store_code;
+            locationCode = store_code;
+        }
+
+        let completed = 0;
+        let successful = 0;
+        let errors = [];
+
+        products.forEach((product, index) => {
+            const { product_id, product_name, barcode, product_variant, quantity } = product;
+
+            if (!product_id || !barcode || !quantity || quantity <= 0) {
+                completed++;
+                errors.push(`Product ${index + 1}: Missing required fields or invalid quantity`);
+                
+                if (completed === products.length) {
+                    sendBulkTransferResponse(res, successful, errors, locationName);
+                }
+                return;
+            }
+
+            // Check if inventory record already exists
+            const checkSql = `
+                SELECT id, stock FROM inventory 
+                WHERE code = ? AND warehouse = ? AND warehouse_code = ?
+            `;
+
+            db.query(checkSql, [barcode, locationName, locationCode], (err, existing) => {
+                if (err) {
+                    completed++;
+                    errors.push(`Product ${index + 1}: Database error checking inventory`);
+                    
+                    if (completed === products.length) {
+                        sendBulkTransferResponse(res, successful, errors, locationName);
+                    }
+                    return;
+                }
+
+                if (existing.length > 0) {
+                    // Update existing inventory
+                    const updateSql = `
+                        UPDATE inventory SET
+                            stock = stock + ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    `;
+
+                    db.query(updateSql, [quantity, existing[0].id], (updateErr) => {
+                        completed++;
+                        
+                        if (updateErr) {
+                            errors.push(`Product ${index + 1}: Failed to update inventory`);
+                        } else {
+                            successful++;
+                        }
+
+                        if (completed === products.length) {
+                            sendBulkTransferResponse(res, successful, errors, locationName);
+                        }
+                    });
+                } else {
+                    // Create new inventory record
+                    const insertSql = `
+                        INSERT INTO inventory 
+                        (product, code, variant, warehouse, warehouse_code, stock, opening, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                    `;
+
+                    db.query(insertSql, [
+                        product_name,
+                        barcode,
+                        product_variant || null,
+                        locationName,
+                        locationCode,
+                        quantity,
+                        quantity // opening stock same as initial stock
+                    ], (insertErr) => {
+                        completed++;
+                        
+                        if (insertErr) {
+                            errors.push(`Product ${index + 1}: Failed to create inventory record`);
+                        } else {
+                            successful++;
+                        }
+
+                        if (completed === products.length) {
+                            sendBulkTransferResponse(res, successful, errors, locationName);
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // ===============================
+    // BULK IMPORT
+    // ===============================
+    static bulkImport(req, res) {
+        if (!req.file) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'No file uploaded' 
+            });
+        }
+
+        const ext = req.file.originalname.split('.').pop().toLowerCase();
+        let products = [];
+
+        try {
+            if (ext === 'csv') {
+                fs.createReadStream(req.file.path)
+                    .pipe(csv())
+                    .on('data', (row) => products.push(row))
+                    .on('end', () => insertProducts(products, req, res))
+                    .on('error', (err) => {
+                        console.error('CSV parsing error:', err);
+                        res.status(400).json({ 
+                            success: false, 
+                            message: 'Invalid CSV file format' 
+                        });
+                    });
+            } else if (['xlsx', 'xls'].includes(ext)) {
+                const wb = XLSX.readFile(req.file.path);
+                products = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                insertProducts(products, req, res);
+            } else {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Unsupported file format. Please use CSV or Excel files.' 
+                });
+            }
         } catch (error) {
             console.error('Bulk import error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error'
+            res.status(500).json({ 
+                success: false, 
+                message: 'Failed to process file' 
             });
         }
     }
 
-    // Get all categories
-    static async getCategories(req, res) {
-        try {
-            const [categories] = await db.execute(`
-                SELECT 
-                    id,
-                    name,
-                    display_name,
-                    description,
-                    parent_id,
-                    is_active,
-                    created_at
-                FROM product_categories 
-                WHERE is_active = 1
-                ORDER BY display_name ASC
-            `);
-
-            res.json({
-                success: true,
-                data: categories
+    // ===============================
+    // BULK IMPORT WITH PROGRESS
+    // ===============================
+    static bulkImportWithProgress(req, res) {
+        if (!req.file) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'No file uploaded' 
             });
+        }
 
+        const ext = req.file.originalname.split('.').pop().toLowerCase();
+        let products = [];
+
+        try {
+            if (ext === 'csv') {
+                fs.createReadStream(req.file.path)
+                    .pipe(csv())
+                    .on('data', (row) => products.push(row))
+                    .on('end', () => insertProductsWithProgress(products, req, res))
+                    .on('error', (err) => {
+                        console.error('CSV parsing error:', err);
+                        res.status(400).json({ 
+                            success: false, 
+                            message: 'Invalid CSV file format' 
+                        });
+                    });
+            } else if (['xlsx', 'xls'].includes(ext)) {
+                const wb = XLSX.readFile(req.file.path);
+                products = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                insertProductsWithProgress(products, req, res);
+            } else {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Unsupported file format. Please use CSV or Excel files.' 
+                });
+            }
         } catch (error) {
-            console.error('Get categories error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error'
+            console.error('Bulk import error:', error);
+            res.status(500).json({ 
+                success: false, 
+                message: 'Failed to process file' 
             });
         }
     }
 
-    // Download template for bulk import
-    static async downloadTemplate(req, res) {
-        try {
-            const templateData = [
-                {
-                    product_name: 'Sample Baby Wear',
-                    product_variant: 'Size - 6-12m',
-                    barcode: 'SAMPLE-001',
-                    description: 'Sample baby clothing item',
-                    category_id: 1,
-                    price: 25.99,
-                    cost_price: 15.00,
-                    weight: 0.2,
-                    dimensions: '10x8x2'
-                },
-                {
-                    product_name: 'Sample Baby Toy',
-                    product_variant: 'Red Color',
-                    barcode: 'SAMPLE-002',
-                    description: 'Educational baby toy',
-                    category_id: 4,
-                    price: 12.50,
-                    cost_price: 8.00,
-                    weight: 0.15,
-                    dimensions: '15x10x5'
-                }
-            ];
+    // ===============================
+    // GET INVENTORY WITH FILTERS
+    // ===============================
+    static getInventory(req, res) {
+        const page = parseInt(req.query.page || 1);
+        const limit = parseInt(req.query.limit || 20);
+        const search = req.query.search || '';
+        const warehouse = req.query.warehouse || ''; // Changed from warehouses to warehouse
+        const warehouses = req.query.warehouses || ''; // Keep for backward compatibility
+        const stockFilter = req.query.stockFilter || 'all';
+        const sortBy = req.query.sortBy || 'product_name';
+        const sortOrder = req.query.sortOrder || 'asc';
+        const dateFrom = req.query.dateFrom || '';
+        const dateTo = req.query.dateTo || '';
+        const offset = (page - 1) * limit;
 
-            // Create workbook
-            const workbook = XLSX.utils.book_new();
-            const worksheet = XLSX.utils.json_to_sheet(templateData);
+        console.log('📦 Backend getInventory called with:', {
+            warehouse,
+            warehouses,
+            dateFrom,
+            dateTo,
+            search,
+            stockFilter,
+            sortBy,
+            sortOrder,
+            page,
+            limit
+        });
 
-            // Add column widths
-            worksheet['!cols'] = [
-                { width: 25 }, // product_name
-                { width: 15 }, // product_variant
-                { width: 15 }, // barcode
-                { width: 30 }, // description
-                { width: 12 }, // category_id
-                { width: 10 }, // price
-                { width: 12 }, // cost_price
-                { width: 10 }, // weight
-                { width: 15 }  // dimensions
-            ];
+        let where = 'WHERE 1=1';
+        const params = [];
 
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Products Template');
+        // Search filter
+        if (search) {
+            where += ' AND (i.product LIKE ? OR i.code LIKE ? OR i.variant LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        }
 
-            // Generate buffer
-            const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+        // Warehouse filter - handle both single warehouse and multiple warehouses
+        if (warehouse) {
+            // Single warehouse filter (new format)
+            where += ' AND sb.warehouse = ?';
+            params.push(warehouse);
+            console.log('🏢 Filtering by single warehouse:', warehouse);
+        } else if (warehouses) {
+            // Multiple warehouses filter (old format for backward compatibility)
+            const warehouseList = warehouses.split(',').filter(w => w.trim());
+            if (warehouseList.length > 0) {
+                const placeholders = warehouseList.map(() => '?').join(',');
+                where += ` AND sb.warehouse IN (${placeholders})`;
+                params.push(...warehouseList);
+                console.log('🏢 Filtering by multiple warehouses:', warehouseList);
+            }
+        }
 
-            res.setHeader('Content-Disposition', 'attachment; filename=products_template.xlsx');
-            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            res.send(buffer);
+        // Date range filter
+        if (dateFrom) {
+            where += ' AND DATE(i.created_at) >= ?';
+            params.push(dateFrom);
+            console.log('📅 Date from filter:', dateFrom);
+        }
+        
+        if (dateTo) {
+            where += ' AND DATE(i.created_at) <= ?';
+            params.push(dateTo);
+            console.log('📅 Date to filter:', dateTo);
+        }
 
-    // Create category
-    static async createCategory(req, res) {
-        try {
-            const { name, display_name, description, parent_id } = req.body;
+        // Stock filter
+        if (stockFilter === 'in-stock') {
+            where += ' AND i.stock > 10';
+        } else if (stockFilter === 'low-stock') {
+            where += ' AND i.stock > 0 AND i.stock <= 10';
+        } else if (stockFilter === 'out-of-stock') {
+            where += ' AND i.stock = 0';
+        }
 
-            if (!name || !display_name) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Name and display name are required'
+        // Sort mapping
+        const sortMapping = {
+            'product_name': 'i.product',
+            'stock': 'i.stock',
+            'warehouse': 'i.warehouse',
+            'updated_at': 'i.updated_at'
+        };
+        const sortColumn = sortMapping[sortBy] || 'i.product';
+        const sortDirection = sortOrder === 'desc' ? 'DESC' : 'ASC';
+
+        // Main query - Updated to use stock_batches table
+        const dataSql = `
+            SELECT 
+                sb.id,
+                sb.product_name as product,
+                sb.barcode as code,
+                sb.variant,
+                sb.warehouse,
+                sb.warehouse as warehouse_code,
+                sb.qty_available as stock,
+                sb.qty_initial as opening,
+                sb.created_at,
+                sb.created_at as updated_at,
+                w.Warehouse_name,
+                s.store_name,
+                s.city,
+                s.state
+            FROM stock_batches sb
+            LEFT JOIN dispatch_warehouse w ON sb.warehouse = w.warehouse_code
+            LEFT JOIN stores s ON sb.warehouse = s.store_code
+            ${where}
+            AND sb.status = 'active'
+            ORDER BY ${sortColumn} ${sortDirection}
+            LIMIT ? OFFSET ?
+        `;
+
+        // Count query - Updated to use stock_batches table
+        const countSql = `
+            SELECT COUNT(*) AS total
+            FROM stock_batches sb
+            LEFT JOIN dispatch_warehouse w ON sb.warehouse = w.warehouse_code
+            LEFT JOIN stores s ON sb.warehouse = s.store_code
+            ${where}
+            AND sb.status = 'active'
+        `;
+
+        // Stats query - Updated to use stock_batches table
+        const statsSql = `
+            SELECT 
+                COUNT(DISTINCT sb.barcode) as totalProducts,
+                SUM(sb.qty_available) as totalStock,
+                COUNT(CASE WHEN sb.qty_available > 0 AND sb.qty_available <= 10 THEN 1 END) as lowStockItems,
+                COUNT(CASE WHEN sb.qty_available = 0 THEN 1 END) as outOfStockItems
+            FROM stock_batches sb
+            LEFT JOIN dispatch_warehouse w ON sb.warehouse = w.warehouse_code
+            LEFT JOIN stores s ON sb.warehouse = s.store_code
+            ${where}
+            AND sb.status = 'active'
+        `;
+
+        console.log('🔍 Final SQL WHERE clause:', where);
+        console.log('🔍 SQL Parameters:', params);
+        console.log('🔍 Complete SQL Query:', dataSql);
+
+        // Execute queries
+        db.query(dataSql, [...params, limit, offset], (err, rows) => {
+            if (err) {
+                console.error('getInventory:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to fetch inventory' 
                 });
             }
 
-            const [result] = await db.execute(`
-                INSERT INTO product_categories (name, display_name, description, parent_id, created_at, updated_at)
-                VALUES (?, ?, ?, ?, NOW(), NOW())
-            `, [name, display_name, description, parent_id]);
-
-            res.json({
-                success: true,
-                message: 'Category created successfully',
-                data: {
-                    id: result.insertId,
-                    name,
-                    display_name
+            db.query(countSql, params, (err2, countRows) => {
+                if (err2) {
+                    console.error('countInventory:', err2);
+                    return res.status(500).json({ 
+                        success: false, 
+                        message: 'Failed to count inventory' 
+                    });
                 }
-            });
 
-        } catch (error) {
-            console.error('Create category error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error'
+                db.query(statsSql, params, (err3, statsRows) => {
+                    if (err3) {
+                        console.error('statsInventory:', err3);
+                        return res.status(500).json({ 
+                            success: false, 
+                            message: 'Failed to get inventory stats' 
+                        });
+                    }
+
+                    res.json({
+                        success: true,
+                        data: {
+                            inventory: rows,
+                            pagination: {
+                                page,
+                                limit,
+                                total: countRows[0].total,
+                                pages: Math.ceil(countRows[0].total / limit)
+                            },
+                            stats: statsRows[0] || {
+                                totalProducts: 0,
+                                totalStock: 0,
+                                lowStockItems: 0,
+                                outOfStockItems: 0
+                            }
+                        }
+                    });
+                });
+            });
+        });
+    }
+
+    // ===============================
+    // GET INVENTORY BY WAREHOUSE
+    // ===============================
+    static getInventoryByWarehouse(req, res) {
+        const { warehouse } = req.params;
+        const page = parseInt(req.query.page || 1);
+        const limit = parseInt(req.query.limit || 50);
+        const search = req.query.search || '';
+        const stockFilter = req.query.stockFilter || 'all';
+        const sortBy = req.query.sortBy || 'product_name';
+        const sortOrder = req.query.sortOrder || 'asc';
+        const offset = (page - 1) * limit;
+
+        if (!warehouse) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Warehouse parameter is required' 
             });
         }
-    }
-        try {
-            const { name, display_name, description, parent_id } = req.body;
 
-            if (!name || !display_name) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Name and display name are required'
+        let where = 'WHERE i.warehouse_code = ?';
+        const params = [warehouse];
+
+        // Search filter
+        if (search) {
+            where += ' AND (i.product LIKE ? OR i.code LIKE ? OR i.variant LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        }
+
+        // Stock filter
+        if (stockFilter === 'in-stock') {
+            where += ' AND i.stock > 10';
+        } else if (stockFilter === 'low-stock') {
+            where += ' AND i.stock > 0 AND i.stock <= 10';
+        } else if (stockFilter === 'out-of-stock') {
+            where += ' AND i.stock = 0';
+        }
+
+        // Sort mapping
+        const sortMapping = {
+            'product_name': 'i.product',
+            'stock': 'i.stock',
+            'warehouse': 'i.warehouse',
+            'updated_at': 'i.updated_at'
+        };
+        const sortColumn = sortMapping[sortBy] || 'i.product';
+        const sortDirection = sortOrder === 'desc' ? 'DESC' : 'ASC';
+
+        // Main query
+        const dataSql = `
+            SELECT 
+                i.id,
+                i.product,
+                i.code,
+                i.variant,
+                i.warehouse,
+                i.warehouse_code,
+                i.stock,
+                i.opening,
+                i.created_at,
+                i.updated_at,
+                w.Warehouse_name,
+                s.store_name,
+                s.city,
+                s.state
+            FROM inventory i
+            LEFT JOIN dispatch_warehouse w ON i.warehouse_code = w.warehouse_code
+            LEFT JOIN stores s ON i.warehouse_code = s.store_code
+            ${where}
+            ORDER BY ${sortColumn} ${sortDirection}
+            LIMIT ? OFFSET ?
+        `;
+
+        // Count query
+        const countSql = `
+            SELECT COUNT(*) AS total
+            FROM inventory i
+            LEFT JOIN dispatch_warehouse w ON i.warehouse_code = w.warehouse_code
+            LEFT JOIN stores s ON i.warehouse_code = s.store_code
+            ${where}
+        `;
+
+        // Stats query for this warehouse
+        const statsSql = `
+            SELECT 
+                COUNT(DISTINCT i.code) as totalProducts,
+                SUM(i.stock) as totalStock,
+                COUNT(CASE WHEN i.stock > 0 AND i.stock <= 10 THEN 1 END) as lowStockItems,
+                COUNT(CASE WHEN i.stock = 0 THEN 1 END) as outOfStockItems
+            FROM inventory i
+            LEFT JOIN dispatch_warehouse w ON i.warehouse_code = w.warehouse_code
+            LEFT JOIN stores s ON i.warehouse_code = s.store_code
+            ${where}
+        `;
+
+        // Execute queries
+        db.query(dataSql, [...params, limit, offset], (err, rows) => {
+            if (err) {
+                console.error('getInventoryByWarehouse:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to fetch warehouse inventory' 
                 });
             }
 
-            const [result] = await db.execute(`
-                INSERT INTO product_categories (name, display_name, description, parent_id, created_at, updated_at)
-                VALUES (?, ?, ?, ?, NOW(), NOW())
-            `, [name, display_name, description, parent_id]);
-
-            res.json({
-                success: true,
-                message: 'Category created successfully',
-                data: {
-                    id: result.insertId,
-                    name,
-                    display_name
+            db.query(countSql, params, (err2, countRows) => {
+                if (err2) {
+                    console.error('countInventoryByWarehouse:', err2);
+                    return res.status(500).json({ 
+                        success: false, 
+                        message: 'Failed to count warehouse inventory' 
+                    });
                 }
-            });
 
-        } catch (error) {
-            console.error('Create category error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error'
+                db.query(statsSql, params, (err3, statsRows) => {
+                    if (err3) {
+                        console.error('statsInventoryByWarehouse:', err3);
+                        return res.status(500).json({ 
+                            success: false, 
+                            message: 'Failed to get warehouse inventory stats' 
+                        });
+                    }
+
+                    res.json({
+                        success: true,
+                        data: {
+                            inventory: rows,
+                            warehouse: warehouse,
+                            pagination: {
+                                page,
+                                limit,
+                                total: countRows[0].total,
+                                pages: Math.ceil(countRows[0].total / limit)
+                            },
+                            stats: statsRows[0] || {
+                                totalProducts: 0,
+                                totalStock: 0,
+                                lowStockItems: 0,
+                                outOfStockItems: 0
+                            }
+                        }
+                    });
+                });
+            });
+        });
+    }
+
+    // ===============================
+    // EXPORT INVENTORY
+    // ===============================
+    static exportInventory(req, res) {
+        const search = req.query.search || '';
+        const warehouses = req.query.warehouses || '';
+        const stockFilter = req.query.stockFilter || 'all';
+        const sortBy = req.query.sortBy || 'product_name';
+        const sortOrder = req.query.sortOrder || 'asc';
+
+        let where = 'WHERE 1=1';
+        const params = [];
+
+        // Search filter
+        if (search) {
+            where += ' AND (i.product LIKE ? OR i.code LIKE ? OR i.variant LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        }
+
+        // Warehouse filter
+        if (warehouses) {
+            const warehouseList = warehouses.split(',').filter(w => w.trim());
+            if (warehouseList.length > 0) {
+                const placeholders = warehouseList.map(() => '?').join(',');
+                where += ` AND i.warehouse_code IN (${placeholders})`;
+                params.push(...warehouseList);
+            }
+        }
+
+        // Stock filter
+        if (stockFilter === 'in-stock') {
+            where += ' AND i.stock > 10';
+        } else if (stockFilter === 'low-stock') {
+            where += ' AND i.stock > 0 AND i.stock <= 10';
+        } else if (stockFilter === 'out-of-stock') {
+            where += ' AND i.stock = 0';
+        }
+
+        // Sort mapping
+        const sortMapping = {
+            'product_name': 'i.product',
+            'stock': 'i.stock',
+            'warehouse': 'i.warehouse',
+            'updated_at': 'i.updated_at'
+        };
+        const sortColumn = sortMapping[sortBy] || 'i.product';
+        const sortDirection = sortOrder === 'desc' ? 'DESC' : 'ASC';
+
+        const sql = `
+            SELECT 
+                i.product as 'Product Name',
+                i.code as 'Barcode',
+                i.variant as 'Variant',
+                i.warehouse as 'Location',
+                i.stock as 'Stock Quantity',
+                CASE 
+                    WHEN i.stock = 0 THEN 'Out of Stock'
+                    WHEN i.stock <= 10 THEN 'Low Stock'
+                    ELSE 'In Stock'
+                END as 'Status',
+                DATE_FORMAT(i.updated_at, '%Y-%m-%d %H:%i:%s') as 'Last Updated'
+            FROM inventory i
+            LEFT JOIN dispatch_warehouse w ON i.warehouse_code = w.warehouse_code
+            LEFT JOIN stores s ON i.warehouse_code = s.store_code
+            ${where}
+            ORDER BY ${sortColumn} ${sortDirection}
+        `;
+
+        db.query(sql, params, (err, rows) => {
+            if (err) {
+                console.error('exportInventory:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to export inventory' 
+                });
+            }
+
+            // Convert to CSV
+            if (rows.length === 0) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'No data to export' 
+                });
+            }
+
+            const headers = Object.keys(rows[0]);
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => 
+                    headers.map(header => 
+                        `"${(row[header] || '').toString().replace(/"/g, '""')}"`
+                    ).join(',')
+                )
+            ].join('\n');
+
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="inventory-${new Date().toISOString().split('T')[0]}.csv"`);
+            res.send(csvContent);
+        });
+    }
+
+    // ===============================
+    // CATEGORIES
+    // ===============================
+    static getCategories(req, res) {
+        db.query(
+            'SELECT id, name, display_name FROM product_categories WHERE is_active = 1',
+            (err, rows) => {
+                if (err) {
+                    console.error('getCategories:', err);
+                    return res.status(500).json({ 
+                        success: false, 
+                        message: 'Failed to fetch categories' 
+                    });
+                }
+                res.json({ success: true, data: rows });
+            }
+        );
+    }
+
+    static createCategory(req, res) {
+        const { name, display_name, description } = req.body;
+
+        if (!name || !display_name) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Category name and display name are required' 
             });
         }
+
+        db.query(
+            'INSERT INTO product_categories (name, display_name, description) VALUES (?, ?, ?)',
+            [name, display_name, description || null],
+            (err) => {
+                if (err) {
+                    console.error('createCategory:', err);
+                    if (err.code === 'ER_DUP_ENTRY') {
+                        return res.status(400).json({ 
+                            success: false, 
+                            message: 'Category name already exists' 
+                        });
+                    }
+                    return res.status(500).json({ 
+                        success: false, 
+                        message: 'Failed to create category' 
+                    });
+                }
+                res.json({ 
+                    success: true, 
+                    message: 'Category created successfully' 
+                });
+            }
+        );
     }
+}
+
+// ===============================
+// HELPER FUNCTIONS
+// ===============================
+function insertProducts(products, req, res) {
+    if (!products || products.length === 0) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'No valid products found in file' 
+        });
+    }
+
+    let completed = 0;
+    let successful = 0;
+    let errors = [];
+
+    products.forEach((product, index) => {
+        // Validate required fields
+        if (!product.product_name || !product.barcode) {
+            completed++;
+            errors.push(`Row ${index + 1}: Missing required fields (product_name, barcode)`);
+            
+            if (completed === products.length) {
+                sendBulkImportResponse(res, successful, errors);
+            }
+            return;
+        }
+
+        const sql = `
+            INSERT INTO dispatch_product 
+            (product_name, product_variant, barcode, description, category_id, price, cost_price, weight, dimensions)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        db.query(sql, [
+            product.product_name,
+            product.product_variant || null,
+            product.barcode,
+            product.description || null,
+            product.category_id || null,
+            product.price || null,
+            product.cost_price || null,
+            product.weight || null,
+            product.dimensions || null
+        ], (err) => {
+            completed++;
+            
+            if (err) {
+                console.error(`Error inserting product ${index + 1}:`, err);
+                if (err.code === 'ER_DUP_ENTRY') {
+                    errors.push(`Row ${index + 1}: Barcode '${product.barcode}' already exists`);
+                } else {
+                    errors.push(`Row ${index + 1}: Database error`);
+                }
+            } else {
+                successful++;
+            }
+
+            // Send response when all products are processed
+            if (completed === products.length) {
+                sendBulkImportResponse(res, successful, errors);
+            }
+        });
+    });
+}
+
+function insertProductsWithProgress(products, req, res) {
+    if (!products || products.length === 0) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'No valid products found in file' 
+        });
+    }
+
+    // Set headers for Server-Sent Events
+    res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Cache-Control'
+    });
+
+    const totalProducts = products.length;
+    let completed = 0;
+    let successful = 0;
+    let errors = [];
+
+    // Send initial progress
+    res.write(`data: ${JSON.stringify({
+        type: 'start',
+        total: totalProducts,
+        current: 0,
+        message: 'Starting product import...'
+    })}\n\n`);
+
+    // Process products sequentially for better progress tracking
+    const processProduct = async (index) => {
+        if (index >= products.length) {
+            // Send completion
+            res.write(`data: ${JSON.stringify({
+                type: 'complete',
+                total: totalProducts,
+                successful: successful,
+                failed: errors.length,
+                successCount: successful,
+                errorDetails: errors,
+                message: `Import complete! ${successful} products imported, ${errors.length} failed`
+            })}\n\n`);
+            res.end();
+            return;
+        }
+
+        const product = products[index];
+        const rowNumber = index + 1;
+
+        // Send progress update
+        res.write(`data: ${JSON.stringify({
+            type: 'progress',
+            total: totalProducts,
+            current: rowNumber,
+            percentage: Math.round((rowNumber / totalProducts) * 100),
+            message: `Processing ${product.product_name || 'Unknown Product'}...`,
+            product_name: product.product_name,
+            barcode: product.barcode
+        })}\n\n`);
+
+        // Validate required fields
+        if (!product.product_name || !product.barcode) {
+            errors.push(`Row ${rowNumber}: Missing required fields (product_name, barcode)`);
+            
+            // Send error update
+            res.write(`data: ${JSON.stringify({
+                type: 'error',
+                row: rowNumber,
+                message: 'Validation failed for row ' + rowNumber
+            })}\n\n`);
+            
+            completed++;
+            // Add small delay and continue to next product
+            setTimeout(() => processProduct(index + 1), 50);
+            return;
+        }
+
+        const sql = `
+            INSERT INTO dispatch_product 
+            (product_name, product_variant, barcode, description, category_id, price, cost_price, weight, dimensions)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        db.query(sql, [
+            product.product_name,
+            product.product_variant || null,
+            product.barcode,
+            product.description || null,
+            product.category_id || null,
+            product.price || null,
+            product.cost_price || null,
+            product.weight || null,
+            product.dimensions || null
+        ], (err) => {
+            completed++;
+            
+            if (err) {
+                console.error(`Error inserting product ${rowNumber}:`, err);
+                if (err.code === 'ER_DUP_ENTRY') {
+                    errors.push(`Row ${rowNumber}: Barcode '${product.barcode}' already exists`);
+                } else {
+                    errors.push(`Row ${rowNumber}: Database error`);
+                }
+
+                // Send error update
+                res.write(`data: ${JSON.stringify({
+                    type: 'error',
+                    row: rowNumber,
+                    message: `Failed to insert row ${rowNumber}: ${err.code === 'ER_DUP_ENTRY' ? 'Duplicate barcode' : 'Database error'}`
+                })}\n\n`);
+            } else {
+                successful++;
+
+                // Send success update
+                res.write(`data: ${JSON.stringify({
+                    type: 'success',
+                    row: rowNumber,
+                    message: `Successfully inserted ${product.product_name}`
+                })}\n\n`);
+            }
+
+            // Add small delay and continue to next product
+            setTimeout(() => processProduct(index + 1), 50);
+        });
+    };
+
+    // Start processing
+    processProduct(0);
+}
+
+function sendBulkImportResponse(res, successful, errors) {
+    const hasErrors = errors.length > 0;
+    
+    res.json({
+        success: true,
+        message: `Import completed. ${successful} products imported successfully${hasErrors ? `, ${errors.length} errors` : ''}.`,
+        count: successful,
+        data: {
+            successful,
+            errors: errors.length,
+            errorDetails: errors
+        }
+    });
+}
+
+function sendBulkTransferResponse(res, successful, errors, locationName) {
+    const hasErrors = errors.length > 0;
+    
+    res.json({
+        success: true,
+        message: `Bulk transfer completed. ${successful} products transferred to ${locationName}${hasErrors ? `, ${errors.length} errors` : ''}.`,
+        count: successful,
+        data: {
+            successful,
+            errors: errors.length,
+            errorDetails: errors,
+            location: locationName
+        }
+    });
 }
 
 module.exports = ProductController;

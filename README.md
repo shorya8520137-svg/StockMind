@@ -47,6 +47,37 @@ The product management system includes:
 - Search and filtering
 - Pagination
 
+## 📦 Inventory Management
+
+The inventory system supports comprehensive filtering and management capabilities:
+
+### Filtering Features
+- **Warehouse Selection**: Filter by specific warehouse (GGM_WH, BLR_WH, MUM_WH, AMD_WH, HYD_WH)
+- **Date Range**: Filter inventory by date range (dateFrom, dateTo)
+- **Stock Status**: Filter by stock levels (all, in-stock, low-stock, out-of-stock)
+- **Search**: Search by product name, barcode, or variant
+- **Sorting**: Sort by product name, stock quantity, warehouse, or last updated
+
+### API Endpoint Format
+```
+GET /api/inventory?warehouse=GGM_WH&dateFrom=2025-01-01&dateTo=2025-12-31&search=product&stockFilter=in-stock&sortBy=product_name&sortOrder=asc&page=1&limit=50
+```
+
+### Available Warehouses
+- `GGM_WH` - Gurgaon Warehouse
+- `BLR_WH` - Bangalore Warehouse  
+- `MUM_WH` - Mumbai Warehouse
+- `AMD_WH` - Ahmedabad Warehouse
+- `HYD_WH` - Hyderabad Warehouse
+
+### Features
+- Real-time inventory tracking
+- Stock level monitoring (in-stock, low-stock, out-of-stock)
+- Product timeline view
+- CSV export functionality
+- Pagination support
+- Advanced search with suggestions
+
 ### Backend Integration
 
 The frontend expects a backend API running on `http://localhost:3001` with the following endpoints:

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import styles from "./returnModal.module.css";
 
-const API = "https://13-201-222-24.nip.io/api/returns";
+const API = "https://13-201-222-24.nip.io/api/dispatch";
+const RETURNS_API = "https://13-201-222-24.nip.io/api/returns";
 
 export default function ReturnModal({ onClose }) {
     const [warehouseQuery, setWarehouseQuery] = useState("");
@@ -24,14 +25,23 @@ export default function ReturnModal({ onClose }) {
        WAREHOUSE SEARCH
     -------------------------------- */
     useEffect(() => {
-        if (warehouseQuery.length < 2) {
-            setWarehouses([]);
-            return;
-        }
-
-        fetch(`${API}/suggest/warehouses?q=${warehouseQuery}`)
+        fetch(`${API}/warehouses`)
             .then(r => r.json())
-            .then(setWarehouses)
+            .then(data => {
+                const allWarehouses = Array.isArray(data) ? data : [];
+                // Filter warehouses based on query
+                if (warehouseQuery.length < 2) {
+                    setWarehouses([]);
+                } else {
+                    const filtered = allWarehouses
+                        .map(code => ({ warehouse_code: code, Warehouse_name: code }))
+                        .filter(w => 
+                            w.warehouse_code.toLowerCase().includes(warehouseQuery.toLowerCase()) ||
+                            w.Warehouse_name.toLowerCase().includes(warehouseQuery.toLowerCase())
+                        );
+                    setWarehouses(filtered);
+                }
+            })
             .catch(() => setWarehouses([]));
     }, [warehouseQuery]);
 
@@ -44,9 +54,11 @@ export default function ReturnModal({ onClose }) {
             return;
         }
 
-        fetch(`${API}/suggest/products?q=${productQuery}`)
+        fetch(`${API}/search-products?query=${productQuery}`)
             .then(r => r.json())
-            .then(setProducts)
+            .then(data => {
+                setProducts(Array.isArray(data) ? data : (data.data || []));
+            })
             .catch(() => setProducts([]));
     }, [productQuery]);
 
@@ -63,7 +75,7 @@ export default function ReturnModal({ onClose }) {
             setLoading(true);
             setMsg("");
 
-            const res = await fetch(API, {
+            const res = await fetch(RETURNS_API, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

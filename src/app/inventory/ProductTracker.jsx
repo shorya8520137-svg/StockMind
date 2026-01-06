@@ -8,6 +8,7 @@ import { api } from "../../utils/api";
 /* ================= LABEL MAP ================= */
 const LABELS = {
     OPENING: "Opening",
+    BULK_UPLOAD: "Opening",
     SALE: "Dispatch",
     RETURN: "Return",
     DAMAGE: "Damage",
@@ -65,10 +66,8 @@ export default function ProductTracker({
                 setLoading(true);
                 setError("");
 
-                // ✅ FULL ROUTE (api.js remains unchanged)
-                let url = `/api/tracker/inventory/timeline/${encodeURIComponent(
-                    barcode
-                )}`;
+                // ✅ Updated to use new timeline API
+                let url = `/timeline/${encodeURIComponent(barcode)}`;
 
                 if (warehouseFilter && warehouseFilter !== "ALL") {
                     url += `?warehouse=${encodeURIComponent(warehouseFilter)}`;
@@ -77,20 +76,65 @@ export default function ProductTracker({
                 const data = await api(url);
                 if (!mounted) return;
 
-                if (!Array.isArray(data.timeline)) {
+                // Handle new timeline API response format
+                const timelineData = data.data?.timeline || data.timeline || [];
+                const currentStock = data.data?.current_stock || [];
+                const summary = data.data?.summary || {};
+
+                if (!Array.isArray(timelineData)) {
                     throw new Error("Invalid API response");
                 }
 
-                setSummary({
-                    openingStock: data.openingStock || 0,
-                    dispatch: data.totals?.dispatch || 0,
-                    damage: data.totals?.damage || 0,
-                    returns: data.totals?.returns || 0,
-                    recovery: data.totals?.recovery || 0,
-                    finalStock: data.finalStock || 0,
-                });
+                // Format timeline data for display and remove duplicates
+                const formattedTimeline = timelineData
+                    .map((item, index) => ({
+                        ...item,
+                        timestamp: item.timestamp,
+                        type: item.type,
+                        quantity: item.quantity,
+                        warehouse: item.warehouse,
+                        reference: item.reference,
+                        balance_after: item.balance_after || 0 // Use balance from API
+                    }))
+                    // Remove duplicates based on reference, timestamp, and type
+                    .filter((item, index, array) => {
+                        // Keep the first occurrence of each unique combination
+                        const firstIndex = array.findIndex(other => 
+                            other.reference === item.reference &&
+                            other.timestamp === item.timestamp &&
+                            other.type === item.type &&
+                            other.quantity === item.quantity
+                        );
+                        return firstIndex === index;
+                    });
 
-                setTimeline(data.timeline);
+                console.log('📊 Timeline entries before deduplication:', timelineData.length);
+                console.log('📊 Timeline entries after deduplication:', formattedTimeline.length);
+
+                // Recalculate summary based on deduplicated timeline
+                const recalculatedSummary = {
+                    openingStock: formattedTimeline
+                        .filter(item => item.type === 'BULK_UPLOAD' || item.type === 'OPENING')
+                        .reduce((sum, item) => sum + (item.direction === 'IN' ? item.quantity : 0), 0),
+                    dispatch: formattedTimeline
+                        .filter(item => item.type === 'DISPATCH')
+                        .reduce((sum, item) => sum + item.quantity, 0),
+                    damage: formattedTimeline
+                        .filter(item => item.type === 'DAMAGE')
+                        .reduce((sum, item) => sum + item.quantity, 0),
+                    returns: formattedTimeline
+                        .filter(item => item.type === 'RETURN')
+                        .reduce((sum, item) => sum + item.quantity, 0),
+                    recovery: formattedTimeline
+                        .filter(item => item.type === 'RECOVER')
+                        .reduce((sum, item) => sum + item.quantity, 0),
+                    finalStock: summary.current_stock || (currentStock.length > 0 ? currentStock[0].current_stock : 0),
+                };
+
+                console.log('📊 Recalculated summary:', recalculatedSummary);
+
+                setSummary(recalculatedSummary);
+                setTimeline(formattedTimeline);
                 setLoading(false);
             } catch (err) {
                 if (mounted) {
@@ -453,7 +497,7 @@ export default function ProductTracker({
                                                 <td>{time.slice(0, 8)}</td>
                                                 <td>{row.warehouse}</td>
                                                 <td>{row.reference || "—"}</td>
-                                                <td>{row.balance_after}</td>
+                                                <td className={row.balance_after < 0 ? styles.negativeBalance : ''}>{row.balance_after}</td>
                                             </motion.tr>
                                         );
                                     })}

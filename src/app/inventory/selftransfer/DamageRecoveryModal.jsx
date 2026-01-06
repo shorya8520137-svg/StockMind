@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import styles from "./damageRecovery.module.css";
 
-const API = "https://13-201-222-24.nip.io/api/stock";
+const API = "https://13-201-222-24.nip.io/api/dispatch";
 
 export default function DamageRecoveryModal({ onClose }) {
     const [locationType, setLocationType] = useState("WAREHOUSE");
@@ -35,15 +35,29 @@ export default function DamageRecoveryModal({ onClose }) {
             return;
         }
 
-        fetch(`${API}/search?q=${encodeURIComponent(locationQuery)}`)
+        fetch(`${API}/warehouses`)
             .then(r => r.json())
-            .then(d => {
-                setLocations(
-                    locationType === "WAREHOUSE"
-                        ? d.data.warehouses
-                        : d.data.stores
-                );
-            });
+            .then(data => {
+                const allWarehouses = Array.isArray(data) ? data : [];
+                // Filter warehouses based on query and location type
+                if (locationQuery.length < 2) {
+                    setLocations([]);
+                } else {
+                    const filtered = allWarehouses
+                        .map(code => ({ 
+                            warehouse_code: code, 
+                            Warehouse_name: code,
+                            store_code: code,
+                            store_name: code 
+                        }))
+                        .filter(w => 
+                            w.warehouse_code.toLowerCase().includes(locationQuery.toLowerCase()) ||
+                            w.Warehouse_name.toLowerCase().includes(locationQuery.toLowerCase())
+                        );
+                    setLocations(filtered);
+                }
+            })
+            .catch(() => setLocations([]));
     }, [locationQuery, locationType]);
 
     /* ---------------- PRODUCT SEARCH ---------------- */
@@ -57,10 +71,14 @@ export default function DamageRecoveryModal({ onClose }) {
             return;
         }
 
-        fetch(`${API}/search?q=${encodeURIComponent(value)}`)
+        fetch(`${API}/search-products?query=${encodeURIComponent(value)}`)
             .then(r => r.json())
-            .then(d => {
-                updated[rowIndex].products = d.data.products || [];
+            .then(data => {
+                updated[rowIndex].products = Array.isArray(data) ? data : (data.data || []);
+                setRows([...updated]);
+            })
+            .catch(() => {
+                updated[rowIndex].products = [];
                 setRows([...updated]);
             });
     }
@@ -84,25 +102,25 @@ export default function DamageRecoveryModal({ onClose }) {
             setMsg("");
 
             await Promise.all(
-                validRows.map(r =>
-                    fetch(`${API}/damage`, {
+                validRows.map(r => {
+                    const endpoint = action === "damage" 
+                        ? "https://13-201-222-24.nip.io/api/damage-recovery/damage"
+                        : "https://13-201-222-24.nip.io/api/damage-recovery/recover";
+                    return fetch(endpoint, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                            productType: r.selectedProduct.product_name,
+                            product_type: r.selectedProduct.product_name,
                             barcode: r.selectedProduct.barcode,
-
-                            // ✅ FIXED FIELD (THIS WAS THE BUG)
-                            warehouse:
+                            inventory_location:
                                 locationType === "WAREHOUSE"
                                     ? selectedLocation.warehouse_code
                                     : selectedLocation.store_code,
-
-                            actionType: action,
                             quantity: Number(r.qty),
+                            action_type: action === "recovery" ? "recover" : action
                         }),
-                    })
-                )
+                    });
+                })
             );
 
             setMsg("✔ Successfully processed");

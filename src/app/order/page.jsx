@@ -1,9 +1,9 @@
-import OrderSheet from "./OrderSheet";
+import OrderSheet from "./OrderSheet.jsx";
 import 'react-chat-elements/dist/main.css';
 
 export default function OrderPage() {
     return (
-        <div style={{ width: "100%", padding: 0 }}>
+        <div style={{ height: "100vh", overflow: "hidden" }}>
             <OrderSheet />
         </div>
     );

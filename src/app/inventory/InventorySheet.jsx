@@ -1,34 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { Search, Filter, Download, Package, MapPin, BarChart3, Eye, RefreshCw, Calendar, TrendingUp, X, ChevronDown } from "lucide-react";
 import styles from "./inventory.module.css";
-import { api } from "../../utils/api";
-
-import {
-    Table,
-    TableHeader,
-    TableBody,
-    TableRow,
-    TableHead,
-    TableCell,
-} from "../../components/ui/table";
-
+import { getMockInventoryResponse } from "../../utils/mockInventoryData";
 import ProductTracker from "./ProductTracker";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 50;
 
-/**
- * ✅ SOURCE OF TRUTH
- * key = warehouse_code
- * value = display name
- */
 const WAREHOUSES = [
-    { code: "GGM_WH", name: "Gurgaon Warehouse" },
-    { code: "BLR_WH", name: "Bangalore Warehouse" },
-    { code: "MUM_WH", name: "Mumbai Warehouse" },
-    { code: "AMD_WH", name: "Ahmedabad Warehouse" },
-    { code: "HYD_WH", name: "Hyderabad Warehouse" },
+    { code: "GGM_WH", name: "Gurgaon Warehouse", city: "Gurgaon" },
+    { code: "BLR_WH", name: "Bangalore Warehouse", city: "Bangalore" },
+    { code: "MUM_WH", name: "Mumbai Warehouse", city: "Mumbai" },
+    { code: "AMD_WH", name: "Ahmedabad Warehouse", city: "Ahmedabad" },
+    { code: "HYD_WH", name: "Hyderabad Warehouse", city: "Hyderabad" },
 ];
 
 export default function InventorySheet() {
@@ -37,442 +22,1025 @@ export default function InventorySheet() {
     const [searchQuery, setSearchQuery] = useState("");
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-
     const [page, setPage] = useState(1);
-    const [activeWarehouse, setActiveWarehouse] = useState(WAREHOUSES[0]);
+    const [totalPages, setTotalPages] = useState(1);
+    
+    // Filter states
+    const [selectedWarehouse, setSelectedWarehouse] = useState("GGM_WH"); // Single warehouse selection
+    const [stockFilter, setStockFilter] = useState("all");
+    const [sortBy, setSortBy] = useState("product_name");
+    const [sortOrder, setSortOrder] = useState("asc");
+    const [showFilters, setShowFilters] = useState(false);
+    const [dateFrom, setDateFrom] = useState("2025-01-01"); // Default start of year
+    const [dateTo, setDateTo] = useState("2025-12-31"); // Default end of year
+    const [useMockData, setUseMockData] = useState(false); // Toggle for mock data
+    
+    // Timeline states - restored for modal
+    const [selectedItem, setSelectedItem] = useState(null);
+    const [showTimeline, setShowTimeline] = useState(false);
+    
+    // Stats
+    const [stats, setStats] = useState({
+        totalProducts: 0,
+        totalStock: 0,
+        lowStockItems: 0,
+        outOfStockItems: 0
+    });
 
-    const [openTracker, setOpenTracker] = useState(false);
-    const [selectedProduct, setSelectedProduct] = useState(null);
-
-    // Export functionality state
-    const [showExportDropdown, setShowExportDropdown] = useState(false);
-    const [selectedWarehouses, setSelectedWarehouses] = useState(WAREHOUSES.map(w => w.code));
-    const [exporting, setExporting] = useState(false);
-
-    /* ================= LOAD INVENTORY ================= */
-    useEffect(() => {
-        let ignore = false;
+    /* ================= LOAD INVENTORY WITH FILTERS ================= */
+    const loadInventory = async () => {
         setLoading(true);
-
-        api(
-            `/api/inventory/by-warehouse?warehouse=${activeWarehouse.code}`
-        )
-            .then((data) => {
-                if (ignore) return;
-                setItems(Array.isArray(data) ? data : []);
-                setLoading(false);
-            })
-            .catch(() => {
-                if (ignore) return;
-                setItems([]);
-                setLoading(false);
+        try {
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: PAGE_SIZE.toString(),
             });
 
-        return () => {
-            ignore = true;
-        };
-    }, [activeWarehouse]);
-
-    /* ================= CLOSE EXPORT DROPDOWN ON OUTSIDE CLICK ================= */
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (showExportDropdown && !event.target.closest(`.${styles.exportDropdown}`)) {
-                setShowExportDropdown(false);
+            // Add warehouse filter - use selected warehouse
+            if (selectedWarehouse) {
+                params.append('warehouse', selectedWarehouse);
             }
-        };
 
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [showExportDropdown]);
+            // Add optional parameters only if they have values
+            if (searchQuery.trim()) {
+                params.append('search', searchQuery);
+            }
+            if (stockFilter !== 'all') {
+                params.append('stockFilter', stockFilter);
+            }
+            if (sortBy !== 'product_name') {
+                params.append('sortBy', sortBy);
+            }
+            if (sortOrder !== 'asc') {
+                params.append('sortOrder', sortOrder);
+            }
+            if (dateFrom) {
+                params.append('dateFrom', dateFrom);
+            }
+            if (dateTo) {
+                params.append('dateTo', dateTo);
+            }
 
-    /* ================= SEARCH FUNCTIONALITY ================= */
-    const handleSearchChange = (e) => {
-        const query = e.target.value;
-        setSearchQuery(query);
-        
-        if (query.trim().length > 0) {
-            // Filter items based on search query
-            const filtered = items.filter(item => 
-                item.product.toLowerCase().includes(query.toLowerCase()) ||
-                (item.barcode && item.barcode.toLowerCase().includes(query.toLowerCase()))
-            );
-            setSuggestions(filtered.slice(0, 5)); // Show max 5 suggestions
-            setShowSuggestions(true);
-        } else {
-            setSuggestions([]);
-            setShowSuggestions(false);
+            console.log('API URL:', `https://13-201-222-24.nip.io/api/inventory?${params}`);
+            console.log('🔍 Inventory Filter Parameters:', {
+                warehouse: selectedWarehouse,
+                dateFrom,
+                dateTo,
+                search: searchQuery || 'none',
+                stockFilter,
+                sortBy,
+                sortOrder,
+                page,
+                limit: PAGE_SIZE
+            });
+            console.log('🏢 CRITICAL: Warehouse filter should be:', selectedWarehouse);
+
+            const response = await fetch(`https://13-201-222-24.nip.io/api/inventory?${params}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('Response status:', response.status);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('API Response:', data);
+            
+            // Handle different response formats more robustly
+            let inventoryItems = [];
+            let totalCount = 0;
+            let statsData = {
+                totalProducts: 0,
+                totalStock: 0,
+                lowStockItems: 0,
+                outOfStockItems: 0
+            };
+
+            // Try different response structures
+            if (data.success && data.data) {
+                // Standard success response
+                inventoryItems = Array.isArray(data.data) ? data.data : data.data.items || data.data.inventory || [];
+                totalCount = data.total || data.data.total || inventoryItems.length;
+                statsData = data.stats || data.data.stats || {};
+            } else if (Array.isArray(data)) {
+                // Direct array response
+                inventoryItems = data;
+                totalCount = data.length;
+            } else if (data.inventory && Array.isArray(data.inventory)) {
+                // Inventory key response
+                inventoryItems = data.inventory;
+                totalCount = data.total || inventoryItems.length;
+                statsData = data.stats || {};
+            } else if (data.items && Array.isArray(data.items)) {
+                // Items key response
+                inventoryItems = data.items;
+                totalCount = data.total || inventoryItems.length;
+                statsData = data.stats || {};
+            } else {
+                console.warn('Unexpected API response format:', data);
+                inventoryItems = [];
+            }
+
+            // Calculate stats if not provided by API
+            if (!statsData.totalProducts && inventoryItems.length > 0) {
+                statsData = {
+                    totalProducts: totalCount || inventoryItems.length,
+                    totalStock: inventoryItems.reduce((sum, item) => sum + (parseInt(item.stock || item.quantity || 0)), 0),
+                    lowStockItems: inventoryItems.filter(item => {
+                        const stock = parseInt(item.stock || item.quantity || 0);
+                        return stock > 0 && stock <= 10;
+                    }).length,
+                    outOfStockItems: inventoryItems.filter(item => {
+                        const stock = parseInt(item.stock || item.quantity || 0);
+                        return stock === 0;
+                    }).length
+                };
+            }
+
+            console.log('Processed inventory data:', {
+                itemsCount: inventoryItems.length,
+                totalCount,
+                stats: statsData,
+                sampleItem: inventoryItems[0] || 'No items',
+                warehouses: inventoryItems.map(item => item.warehouse || item.warehouse_name || item.Warehouse_name || 'Unknown').slice(0, 5),
+                expectedWarehouse: selectedWarehouse,
+                actualWarehouses: [...new Set(inventoryItems.map(item => item.warehouse || item.warehouse_name || item.Warehouse_name))]
+            });
+
+            setItems(inventoryItems);
+            setTotalPages(Math.ceil(totalCount / PAGE_SIZE) || 1);
+            setStats({
+                totalProducts: statsData.totalProducts || totalCount || inventoryItems.length,
+                totalStock: statsData.totalStock || 0,
+                lowStockItems: statsData.lowStockItems || 0,
+                outOfStockItems: statsData.outOfStockItems || 0
+            });
+        } catch (error) {
+            console.error('Error loading inventory:', error);
+            
+            // Try to load mock data as fallback
+            console.log('API failed, loading mock data as fallback...');
+            
+            try {
+                const mockResponse = await getMockInventoryResponse({
+                    warehouse: selectedWarehouse,
+                    dateFrom,
+                    dateTo,
+                    search: searchQuery,
+                    stockFilter,
+                    sortBy,
+                    sortOrder,
+                    page,
+                    limit: PAGE_SIZE
+                });
+                
+                console.log('Mock data loaded:', mockResponse);
+                
+                setItems(mockResponse.data || []);
+                setTotalPages(mockResponse.pagination?.pages || 1);
+                setStats(mockResponse.stats || {
+                    totalProducts: 0,
+                    totalStock: 0,
+                    lowStockItems: 0,
+                    outOfStockItems: 0
+                });
+                
+            } catch (mockError) {
+                console.error('Mock data also failed:', mockError);
+                setItems([]);
+                setTotalPages(1);
+                setStats({
+                    totalProducts: 0,
+                    totalStock: 0,
+                    lowStockItems: 0,
+                    outOfStockItems: 0
+                });
+            }
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleSuggestionClick = (item) => {
-        setSearchQuery(item.product);
-        setShowSuggestions(false);
-        setSelectedProduct(item);
-        setOpenTracker(true);
-    };
-
-    /* ================= FILTERED ITEMS ================= */
-    const filteredItems = useMemo(() => {
-        if (!searchQuery.trim()) return items;
-        
-        return items.filter(item => 
-            item.product.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (item.barcode && item.barcode.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
-    }, [items, searchQuery]);
-
-    /* ================= EXPORT FUNCTIONALITY ================= */
-    const handleWarehouseToggle = (warehouseCode) => {
-        setSelectedWarehouses(prev => {
-            if (prev.includes(warehouseCode)) {
-                return prev.filter(code => code !== warehouseCode);
-            } else {
-                return [...prev, warehouseCode];
-            }
+    useEffect(() => {
+        // Debug: Check if component mounted
+        console.log('InventorySheet mounted, loading with filters:', {
+            page,
+            selectedWarehouse,
+            stockFilter,
+            sortBy,
+            sortOrder,
+            dateFrom,
+            dateTo,
+            searchQuery,
+            useMockData
         });
-    };
+        
+        // Use the warehouse-specific loader to ensure proper filtering
+        if (selectedWarehouse) {
+            loadInventoryWithWarehouse(selectedWarehouse);
+        } else {
+            loadInventory();
+        }
+    }, [page, selectedWarehouse, stockFilter, sortBy, sortOrder, dateFrom, dateTo, useMockData]);
 
-    const selectAllWarehouses = () => {
-        setSelectedWarehouses(WAREHOUSES.map(w => w.code));
-    };
+    // Separate effect for search with debounce
+    useEffect(() => {
+        const delayedSearch = setTimeout(() => {
+            console.log('Search query changed, reloading...', searchQuery);
+            if (page !== 1) setPage(1);
+            else {
+                // Use warehouse-specific loader for search
+                if (selectedWarehouse) {
+                    loadInventoryWithWarehouse(selectedWarehouse);
+                } else {
+                    loadInventory();
+                }
+            }
+        }, 300);
 
-    const deselectAllWarehouses = () => {
-        setSelectedWarehouses([]);
-    };
+        return () => clearTimeout(delayedSearch);
+    }, [searchQuery]);
 
-    const exportToCSV = async () => {
-        if (selectedWarehouses.length === 0) {
-            alert("Please select at least one warehouse to export");
+    /* ================= SEARCH WITH BACKEND SUGGESTIONS ================= */
+    const handleSearchChange = async (e) => {
+        const query = e.target.value;
+        setSearchQuery(query);
+
+        if (!query.trim()) {
+            setSuggestions([]);
+            setShowSuggestions(false);
             return;
         }
 
-        setExporting(true);
-        try {
-            // Fetch data for selected warehouses
-            const allData = [];
-            
-            for (const warehouseCode of selectedWarehouses) {
-                try {
-                    const data = await api(`/api/inventory/by-warehouse?warehouse=${warehouseCode}`);
-                    if (Array.isArray(data)) {
-                        allData.push(...data);
+        if (query.length >= 2) {
+            try {
+                const response = await fetch(`https://13-201-222-24.nip.io/api/products?search=${encodeURIComponent(query)}&limit=5`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
                     }
-                } catch (error) {
-                    console.error(`Failed to fetch data for warehouse ${warehouseCode}:`, error);
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.data) {
+                        setSuggestions(data.data.products || data.data || []);
+                        setShowSuggestions(true);
+                    } else if (Array.isArray(data)) {
+                        setSuggestions(data);
+                        setShowSuggestions(true);
+                    }
                 }
+            } catch (error) {
+                console.error('Error fetching suggestions:', error);
             }
-
-            if (allData.length === 0) {
-                alert("No data found for selected warehouses");
-                return;
-            }
-
-            // Create CSV content
-            const headers = ["Product", "Barcode", "Stock", "Warehouse"];
-            const csvContent = [
-                headers.join(","),
-                ...allData.map(item => [
-                    `"${item.product || ""}"`,
-                    `"${item.barcode || ""}"`,
-                    item.stock || 0,
-                    `"${item.warehouse || ""}"`
-                ].join(","))
-            ].join("\n");
-
-            // Create and download file
-            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            
-            const warehouseNames = selectedWarehouses.map(code => 
-                WAREHOUSES.find(w => w.code === code)?.name || code
-            ).join("_");
-            
-            const fileName = selectedWarehouses.length === WAREHOUSES.length 
-                ? `inventory_all_warehouses_${new Date().toISOString().split('T')[0]}.csv`
-                : `inventory_${warehouseNames}_${new Date().toISOString().split('T')[0]}.csv`;
-                
-            link.setAttribute("download", fileName);
-            link.style.visibility = "hidden";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            setShowExportDropdown(false);
-        } catch (error) {
-            console.error("Export failed:", error);
-            alert("Export failed. Please try again.");
-        } finally {
-            setExporting(false);
         }
     };
 
-    /* ================= PAGINATION ================= */
-    const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
-    const paginated = filteredItems.slice(
-        (page - 1) * PAGE_SIZE,
-        page * PAGE_SIZE
-    );
+    const selectSuggestion = (suggestion) => {
+        setSearchQuery(suggestion.product_name);
+        setShowSuggestions(false);
+        setPage(1);
+    };
+
+    /* ================= WAREHOUSE FILTER ================= */
+    const handleWarehouseChange = (warehouseCode) => {
+        console.log('🏢 Warehouse changed to:', warehouseCode);
+        console.log('🏢 Previous warehouse was:', selectedWarehouse);
+        
+        // Clear existing data immediately to prevent showing wrong data
+        setItems([]);
+        setStats({
+            totalProducts: 0,
+            totalStock: 0,
+            lowStockItems: 0,
+            outOfStockItems: 0
+        });
+        
+        setSelectedWarehouse(warehouseCode);
+        setPage(1);
+        
+        // Force immediate reload with the new warehouse
+        loadInventoryWithWarehouse(warehouseCode);
+    };
+
+    /* ================= LOAD INVENTORY WITH SPECIFIC WAREHOUSE ================= */
+    const loadInventoryWithWarehouse = async (warehouseCode) => {
+        setLoading(true);
+        try {
+            const params = new URLSearchParams({
+                page: '1',
+                limit: PAGE_SIZE.toString(),
+            });
+
+            // Use the passed warehouse parameter directly
+            if (warehouseCode) {
+                params.append('warehouse', warehouseCode);
+            }
+
+            // Add other current filter parameters
+            if (searchQuery.trim()) {
+                params.append('search', searchQuery);
+            }
+            if (stockFilter !== 'all') {
+                params.append('stockFilter', stockFilter);
+            }
+            if (sortBy !== 'product_name') {
+                params.append('sortBy', sortBy);
+            }
+            if (sortOrder !== 'asc') {
+                params.append('sortOrder', sortOrder);
+            }
+            if (dateFrom) {
+                params.append('dateFrom', dateFrom);
+            }
+            if (dateTo) {
+                params.append('dateTo', dateTo);
+            }
+
+            console.log('🔍 Loading inventory for warehouse:', warehouseCode);
+            console.log('API URL:', `https://13-201-222-24.nip.io/api/inventory?${params}`);
+
+            const response = await fetch(`https://13-201-222-24.nip.io/api/inventory?${params}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('Response status:', response.status);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('API Response for', warehouseCode, ':', data);
+            
+            // Handle different response formats more robustly
+            let inventoryItems = [];
+            let totalCount = 0;
+            let statsData = {
+                totalProducts: 0,
+                totalStock: 0,
+                lowStockItems: 0,
+                outOfStockItems: 0
+            };
+
+            // Try different response structures
+            if (data.success && data.data) {
+                // Standard success response
+                inventoryItems = Array.isArray(data.data) ? data.data : data.data.items || data.data.inventory || [];
+                totalCount = data.total || data.data.total || inventoryItems.length;
+                statsData = data.stats || data.data.stats || {};
+            } else if (Array.isArray(data)) {
+                // Direct array response
+                inventoryItems = data;
+                totalCount = data.length;
+            } else if (data.inventory && Array.isArray(data.inventory)) {
+                // Inventory key response
+                inventoryItems = data.inventory;
+                totalCount = data.total || inventoryItems.length;
+                statsData = data.stats || {};
+            } else if (data.items && Array.isArray(data.items)) {
+                // Items key response
+                inventoryItems = data.items;
+                totalCount = data.total || inventoryItems.length;
+                statsData = data.stats || {};
+            } else {
+                console.warn('Unexpected API response format:', data);
+                inventoryItems = [];
+            }
+
+            // Verify warehouse filtering worked correctly
+            const actualWarehouses = [...new Set(inventoryItems.map(item => item.warehouse || item.warehouse_name || item.Warehouse_name))];
+            console.log('🏢 Expected warehouse:', warehouseCode);
+            console.log('🏢 Actual warehouses in response:', actualWarehouses);
+            
+            if (warehouseCode && actualWarehouses.length > 0 && !actualWarehouses.includes(warehouseCode)) {
+                console.error('❌ WAREHOUSE FILTER FAILED! Expected:', warehouseCode, 'Got:', actualWarehouses);
+                console.error('❌ This indicates a backend filtering bug or data corruption');
+                // Clear data if wrong warehouse data is returned
+                inventoryItems = [];
+                totalCount = 0;
+                statsData = {
+                    totalProducts: 0,
+                    totalStock: 0,
+                    lowStockItems: 0,
+                    outOfStockItems: 0
+                };
+            } else if (warehouseCode && actualWarehouses.length === 0) {
+                console.log('✅ Warehouse filter working correctly - no data for', warehouseCode);
+            } else if (warehouseCode && actualWarehouses.includes(warehouseCode)) {
+                console.log('✅ Warehouse filter working correctly - data matches', warehouseCode);
+            }
+
+            // Calculate stats if not provided by API
+            if (!statsData.totalProducts && inventoryItems.length > 0) {
+                statsData = {
+                    totalProducts: totalCount || inventoryItems.length,
+                    totalStock: inventoryItems.reduce((sum, item) => sum + (parseInt(item.stock || item.quantity || 0)), 0),
+                    lowStockItems: inventoryItems.filter(item => {
+                        const stock = parseInt(item.stock || item.quantity || 0);
+                        return stock > 0 && stock <= 10;
+                    }).length,
+                    outOfStockItems: inventoryItems.filter(item => {
+                        const stock = parseInt(item.stock || item.quantity || 0);
+                        return stock === 0;
+                    }).length
+                };
+            }
+
+            console.log('✅ Final processed data for', warehouseCode, ':', {
+                itemsCount: inventoryItems.length,
+                totalCount,
+                stats: statsData,
+                sampleItem: inventoryItems[0] || 'No items'
+            });
+
+            setItems(inventoryItems);
+            setTotalPages(Math.ceil(totalCount / PAGE_SIZE) || 1);
+            setStats({
+                totalProducts: statsData.totalProducts || totalCount || inventoryItems.length,
+                totalStock: statsData.totalStock || 0,
+                lowStockItems: statsData.lowStockItems || 0,
+                outOfStockItems: statsData.outOfStockItems || 0
+            });
+        } catch (error) {
+            console.error('❌ Error loading inventory for', warehouseCode, ':', error);
+            
+            // Don't fall back to mock data for warehouse-specific requests
+            // Just show empty state
+            setItems([]);
+            setTotalPages(1);
+            setStats({
+                totalProducts: 0,
+                totalStock: 0,
+                lowStockItems: 0,
+                outOfStockItems: 0
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /* ================= EXPORT ================= */
+    const exportToCSV = async (warehouseOption = 'current') => {
+        try {
+            const params = new URLSearchParams({
+                export: 'true'
+            });
+
+            // Determine which warehouse to export
+            let exportWarehouse = selectedWarehouse;
+            if (warehouseOption === 'all') {
+                // Don't add warehouse parameter for all warehouses
+            } else if (warehouseOption === 'current') {
+                exportWarehouse = selectedWarehouse;
+            } else {
+                exportWarehouse = warehouseOption;
+            }
+
+            if (exportWarehouse && warehouseOption !== 'all') {
+                params.append('warehouse', exportWarehouse);
+            }
+
+            if (searchQuery.trim()) {
+                params.append('search', searchQuery);
+            }
+            if (stockFilter !== 'all') {
+                params.append('stockFilter', stockFilter);
+            }
+            if (sortBy !== 'product_name') {
+                params.append('sortBy', sortBy);
+            }
+            if (sortOrder !== 'asc') {
+                params.append('sortOrder', sortOrder);
+            }
+            if (dateFrom) {
+                params.append('dateFrom', dateFrom);
+            }
+            if (dateTo) {
+                params.append('dateTo', dateTo);
+            }
+
+            console.log('🔽 Exporting with params:', params.toString());
+            console.log('🏢 Export warehouse:', exportWarehouse || 'All Warehouses');
+
+            const response = await fetch(`https://13-201-222-24.nip.io/api/inventory/export?${params}`, {
+                method: 'GET'
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                const warehouseName = warehouseOption === 'all' ? 'All-Warehouses' : 
+                                    warehouseOption === 'current' ? selectedWarehouse : 
+                                    warehouseOption;
+                                    
+                a.download = `inventory-${warehouseName}-${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                console.log('✅ Export completed for:', warehouseName);
+            } else {
+                console.error('❌ Export failed:', response.status);
+            }
+        } catch (error) {
+            console.error('❌ Export error:', error);
+        }
+    };
+
+    /* ================= TIMELINE FUNCTIONS ================= */
+    const openTimeline = async (item) => {
+        setSelectedItem(item);
+        setShowTimeline(true);
+    };
+
+    const closeTimeline = () => {
+        setShowTimeline(false);
+        setSelectedItem(null);
+    };
 
     return (
         <div className={styles.container}>
-            {/* SEARCH BAR */}
-            <div className={styles.searchSection}>
-                <div className={styles.searchWrapper}>
+            {/* Top Bar */}
+            <div className={styles.topBar}>
+                <div className={styles.topLeft}>
+                    <h1 className={styles.title}>
+                        <Package size={20} />
+                        Inventory Management
+                        {useMockData && <span style={{fontSize: '12px', color: '#f59e0b', marginLeft: '8px'}}>(Mock Data)</span>}
+                    </h1>
+                </div>
+                
+                <div className={styles.topActions}>
+                    <button
+                        className={styles.refreshBtn}
+                        onClick={() => {
+                            console.log('🔄 Manual refresh triggered');
+                            if (selectedWarehouse) {
+                                loadInventoryWithWarehouse(selectedWarehouse);
+                            } else {
+                                loadInventory();
+                            }
+                        }}
+                        title="Refresh"
+                    >
+                        <RefreshCw size={16} />
+                    </button>
+                    <button
+                        className={styles.exportBtn}
+                        onClick={() => {
+                            console.log('🧪 Testing API connection...');
+                            console.log('Current filters:', {
+                                warehouse: selectedWarehouse,
+                                dateFrom,
+                                dateTo,
+                                stockFilter,
+                                searchQuery
+                            });
+                            
+                            // Test multiple warehouses
+                            const testWarehouses = ['BLR_WH', 'MUM_WH', 'GGM_WH'];
+                            
+                            testWarehouses.forEach(wh => {
+                                fetch(`https://13-201-222-24.nip.io/api/inventory?warehouse=${wh}&limit=5`)
+                                    .then(res => {
+                                        console.log(`${wh} API Status:`, res.status);
+                                        return res.json();
+                                    })
+                                    .then(data => {
+                                        console.log(`${wh} Response:`, {
+                                            success: data.success,
+                                            dataCount: data.data?.length || 0,
+                                            sampleData: data.data?.[0] || 'No data'
+                                        });
+                                    })
+                                    .catch(err => {
+                                        console.error(`${wh} Error:`, err);
+                                    });
+                            });
+                        }}
+                        title="Test API"
+                    >
+                        🧪 Test All
+                    </button>
+                    
+                    {/* Export Dropdown */}
+                    <div className={styles.exportDropdown}>
+                        <select
+                            onChange={(e) => {
+                                if (e.target.value) {
+                                    exportToCSV(e.target.value);
+                                    e.target.value = ''; // Reset selection
+                                }
+                            }}
+                            className={styles.exportSelect}
+                            defaultValue=""
+                        >
+                            <option value="" disabled>📥 Export Data</option>
+                            <option value="current">Current Warehouse ({selectedWarehouse})</option>
+                            <option value="GGM_WH">Gurgaon Warehouse</option>
+                            <option value="BLR_WH">Bangalore Warehouse</option>
+                            <option value="MUM_WH">Mumbai Warehouse</option>
+                            <option value="AMD_WH">Ahmedabad Warehouse</option>
+                            <option value="HYD_WH">Hyderabad Warehouse</option>
+                            <option value="all">All Warehouses</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            {/* Stats Bar */}
+            <div className={styles.statsBar}>
+                <div className={styles.statItem}>
+                    <span className={styles.statValue}>{stats.totalProducts}</span>
+                    <span className={styles.statLabel}>Products</span>
+                </div>
+                <div className={styles.statItem}>
+                    <span className={styles.statValue}>{stats.totalStock}</span>
+                    <span className={styles.statLabel}>Total Stock</span>
+                </div>
+                <div className={styles.statItem}>
+                    <span className={styles.statValue}>{stats.lowStockItems}</span>
+                    <span className={styles.statLabel}>Low Stock</span>
+                </div>
+                <div className={styles.statItem}>
+                    <span className={styles.statValue}>{stats.outOfStockItems}</span>
+                    <span className={styles.statLabel}>Out of Stock</span>
+                </div>
+            </div>
+
+            {/* Search & Filter Bar */}
+            <div className={styles.searchBar}>
+                <div className={styles.searchGroup}>
+                    <Search className={styles.searchIcon} size={16} />
                     <input
                         type="text"
-                        placeholder="Search products by name or barcode..."
+                        placeholder="Search products by name, barcode, or variant..."
                         value={searchQuery}
                         onChange={handleSearchChange}
                         className={styles.searchInput}
-                        onFocus={() => {
-                            if (suggestions.length > 0) {
-                                setShowSuggestions(true);
-                            }
-                        }}
-                        onBlur={() => {
-                            // Delay hiding suggestions to allow clicks
-                            setTimeout(() => setShowSuggestions(false), 200);
-                        }}
+                        onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                     />
-                    
-                    {/* Clear Search Button */}
-                    {searchQuery && (
-                        <button
-                            className={styles.clearSearch}
-                            onClick={() => {
-                                setSearchQuery("");
-                                setShowSuggestions(false);
-                                setPage(1);
-                            }}
-                        >
-                            ✕
-                        </button>
-                    )}
                     
                     {/* Search Suggestions */}
                     {showSuggestions && suggestions.length > 0 && (
-                        <div className={styles.suggestionList}>
-                            {suggestions.map((item, index) => (
+                        <div className={styles.suggestions}>
+                            {suggestions.map(suggestion => (
                                 <div
-                                    key={`${item.barcode || item.product}-${index}`}
+                                    key={suggestion.p_id}
                                     className={styles.suggestionItem}
-                                    onClick={() => handleSuggestionClick(item)}
+                                    onClick={() => selectSuggestion(suggestion)}
                                 >
-                                    <div className={styles.suggestionContent}>
-                                        <div className={styles.suggestionTitle}>{item.product}</div>
-                                        <div className={styles.suggestionMeta}>
-                                            {item.barcode && <span>Barcode: {item.barcode}</span>}
-                                            <span>Stock: {item.stock}</span>
-                                            <span>{item.warehouse}</span>
-                                        </div>
+                                    <Package size={14} />
+                                    <div>
+                                        <div className={styles.suggestionName}>{suggestion.product_name}</div>
+                                        <div className={styles.suggestionBarcode}>{suggestion.barcode}</div>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
+                
+                <button
+                    className={`${styles.filterBtn} ${showFilters ? styles.active : ''}`}
+                    onClick={() => setShowFilters(!showFilters)}
+                >
+                    <Filter size={16} />
+                    Filters
+                </button>
+            </div>
 
-                {/* Export Button */}
-                <div className={styles.exportSection}>
-                    <div className={styles.exportDropdown}>
-                        <button
-                            className={styles.exportBtn}
-                            onClick={() => setShowExportDropdown(!showExportDropdown)}
-                            disabled={exporting}
-                        >
-                            {exporting ? "Exporting..." : "📊 Export"}
-                        </button>
-                        
-                        {showExportDropdown && (
-                            <div className={styles.exportPanel}>
-                                <div className={styles.exportHeader}>
-                                    <h4>Export Inventory Data</h4>
+            {/* Main Content */}
+            <div className={styles.mainContent}>
+                {/* Filter Sidebar */}
+                {showFilters && (
+                    <>
+                        <div className={styles.filterOverlay} onClick={() => setShowFilters(false)} />
+                        <div className={styles.filterSidebar}>
+                            <div className={styles.filterHeader}>
+                                <h3>Filters</h3>
+                                <button
+                                    className={styles.closeBtn}
+                                    onClick={() => setShowFilters(false)}
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+                            
+                            <div className={styles.filterContent}>
+                                {/* Quick Actions */}
+                                <div className={styles.filterSection}>
+                                    <h4>Quick Actions</h4>
                                     <button
-                                        className={styles.closeExport}
-                                        onClick={() => setShowExportDropdown(false)}
+                                        className={styles.filterAction}
+                                        onClick={() => {
+                                            setSelectedWarehouse("GGM_WH");
+                                            setDateFrom("2025-01-01");
+                                            setDateTo("2025-12-31");
+                                            setStockFilter("all");
+                                            setSortBy("product_name");
+                                            setSortOrder("asc");
+                                            setSearchQuery("");
+                                            setPage(1);
+                                        }}
                                     >
-                                        ✕
+                                        Reset Filters
                                     </button>
                                 </div>
-                                
-                                <div className={styles.warehouseSelection}>
-                                    <div className={styles.selectionActions}>
-                                        <button
-                                            className={styles.selectAllBtn}
-                                            onClick={selectAllWarehouses}
-                                        >
-                                            Select All
-                                        </button>
-                                        <button
-                                            className={styles.deselectAllBtn}
-                                            onClick={deselectAllWarehouses}
-                                        >
-                                            Deselect All
-                                        </button>
+
+                                {/* Date Range Filter */}
+                                <div className={styles.filterSection}>
+                                    <h4>Date Range</h4>
+                                    <div className={styles.dateInputs}>
+                                        <input
+                                            type="date"
+                                            value={dateFrom}
+                                            onChange={(e) => {
+                                                console.log('Date from changed to:', e.target.value);
+                                                setDateFrom(e.target.value);
+                                                setPage(1);
+                                            }}
+                                            className={styles.dateInput}
+                                            placeholder="From"
+                                        />
+                                        <input
+                                            type="date"
+                                            value={dateTo}
+                                            onChange={(e) => {
+                                                console.log('Date to changed to:', e.target.value);
+                                                setDateTo(e.target.value);
+                                                setPage(1);
+                                            }}
+                                            className={styles.dateInput}
+                                            placeholder="To"
+                                        />
                                     </div>
-                                    
-                                    <div className={styles.warehouseList}>
-                                        {WAREHOUSES.map((warehouse) => (
-                                            <label
-                                                key={warehouse.code}
-                                                className={styles.warehouseCheckbox}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedWarehouses.includes(warehouse.code)}
-                                                    onChange={() => handleWarehouseToggle(warehouse.code)}
-                                                />
-                                                <span className={styles.checkboxLabel}>
-                                                    {warehouse.name}
-                                                </span>
-                                            </label>
+                                </div>
+
+                                {/* Stock Status Filter */}
+                                <div className={styles.filterSection}>
+                                    <h4>Stock Status</h4>
+                                    <select
+                                        value={stockFilter}
+                                        onChange={(e) => {
+                                            console.log('Stock filter changed to:', e.target.value);
+                                            setStockFilter(e.target.value);
+                                            setPage(1);
+                                        }}
+                                        className={styles.filterSelect}
+                                    >
+                                        <option value="all">All Items</option>
+                                        <option value="in-stock">In Stock</option>
+                                        <option value="low-stock">Low Stock</option>
+                                        <option value="out-of-stock">Out of Stock</option>
+                                    </select>
+                                </div>
+
+                                {/* Sort Options */}
+                                <div className={styles.filterSection}>
+                                    <h4>Sort By</h4>
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => {
+                                            console.log('Sort by changed to:', e.target.value);
+                                            setSortBy(e.target.value);
+                                            setPage(1);
+                                        }}
+                                        className={styles.filterSelect}
+                                    >
+                                        <option value="product_name">Product Name</option>
+                                        <option value="stock">Stock Quantity</option>
+                                        <option value="warehouse">Warehouse</option>
+                                        <option value="updated_at">Last Updated</option>
+                                    </select>
+                                    <select
+                                        value={sortOrder}
+                                        onChange={(e) => {
+                                            console.log('Sort order changed to:', e.target.value);
+                                            setSortOrder(e.target.value);
+                                            setPage(1);
+                                        }}
+                                        className={styles.filterSelect}
+                                    >
+                                        <option value="asc">Ascending</option>
+                                        <option value="desc">Descending</option>
+                                    </select>
+                                </div>
+
+                                {/* Warehouse Filter */}
+                                <div className={styles.filterSection}>
+                                    <h4>Warehouse</h4>
+                                    <select
+                                        value={selectedWarehouse}
+                                        onChange={(e) => {
+                                            console.log('🏢 Warehouse dropdown changed from', selectedWarehouse, 'to', e.target.value);
+                                            console.log('🏢 Available options:', WAREHOUSES.map(w => `${w.code}: ${w.name}`));
+                                            handleWarehouseChange(e.target.value);
+                                        }}
+                                        className={styles.filterSelect}
+                                    >
+                                        {WAREHOUSES.map(warehouse => (
+                                            <option key={warehouse.code} value={warehouse.code}>
+                                                {warehouse.name} ({warehouse.code})
+                                            </option>
                                         ))}
+                                    </select>
+                                    <div style={{fontSize: '12px', color: '#666', marginTop: '4px'}}>
+                                        Selected: {selectedWarehouse}
+                                        <br />
+                                        Items shown: {items.length}
+                                        <br />
+                                        Warehouses in data: {items.length > 0 ? [...new Set(items.map(item => item.warehouse))].join(', ') : 'None'}
                                     </div>
-                                </div>
-                                
-                                <div className={styles.exportActions}>
-                                    <div className={styles.exportInfo}>
-                                        {selectedWarehouses.length} warehouse(s) selected
-                                    </div>
-                                    <button
-                                        className={styles.downloadBtn}
-                                        onClick={exportToCSV}
-                                        disabled={selectedWarehouses.length === 0 || exporting}
-                                    >
-                                        {exporting ? "Preparing..." : "Download CSV"}
-                                    </button>
                                 </div>
                             </div>
-                        )}
-                    </div>
-                </div>
-            </div>
+                        </div>
+                    </>
+                )}
 
-            {/* WAREHOUSE FILTER */}
-            <div className={styles.filterBar}>
-                <div className={styles.warehouseChips}>
-                    {WAREHOUSES.map((w, index) => (
-                        <motion.button
-                            key={w.code}
-                            className={`${styles.chip} ${
-                                w.code === activeWarehouse.code ? styles.activeChip : ""
-                            }`}
-                            onClick={() => {
-                                setActiveWarehouse(w);
-                                setPage(1);
-                                setSearchQuery(""); // Clear search when changing warehouse
-                                setShowSuggestions(false);
-                            }}
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: index * 0.05 }}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                        >
-                            {w.name}
-                        </motion.button>
-                    ))}
-                </div>
-            </div>
-
-            {/* TABLE */}
-            <motion.div 
-                className={styles.tableCard}
-                key={activeWarehouse.code}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            >
-                <div className={styles.tableWrapper}>
-                    <Table className={styles.table}>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Product</TableHead>
-                                <TableHead>Stock</TableHead>
-                                <TableHead>Warehouse</TableHead>
-                            </TableRow>
-                        </TableHeader>
-
-                        <TableBody>
-                            {!loading &&
-                                paginated.map((item, i) => (
-                                    <motion.tr
-                                        key={`${item.barcode || item.product}-${i}`}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ 
-                                            duration: 0.3, 
-                                            delay: i * 0.03,
-                                            ease: [0.16, 1, 0.3, 1]
-                                        }}
-                                        className={styles.tableRow}
-                                    >
-                                        <TableCell>{item.product}</TableCell>
-
-                                        <TableCell>
-                                            <motion.button
-                                                className={styles.stockBtn}
-                                                onClick={() => {
-                                                    setSelectedProduct(item);
-                                                    setOpenTracker(true);
-                                                }}
-                                                whileHover={{ scale: 1.05 }}
-                                                whileTap={{ scale: 0.95 }}
-                                                transition={{ duration: 0.2 }}
+                {/* Inventory Table */}
+                <div className={styles.tableContainer} key={`inventory-${selectedWarehouse}`}>
+                    {loading ? (
+                        <div className={styles.loading}>
+                            <div className={styles.spinner}></div>
+                            <p>Loading inventory...</p>
+                        </div>
+                    ) : items.length === 0 ? (
+                        <div className={styles.noData}>
+                            <Package size={48} />
+                            <h3>No inventory data found</h3>
+                            <p>Try adjusting your filters or check if inventory data exists in the database.</p>
+                            <button 
+                                className={styles.refreshBtn}
+                                onClick={() => {
+                                    if (selectedWarehouse) {
+                                        loadInventoryWithWarehouse(selectedWarehouse);
+                                    } else {
+                                        loadInventory();
+                                    }
+                                }}
+                            >
+                                <RefreshCw size={16} />
+                                Refresh Data
+                            </button>
+                        </div>
+                    ) : (
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Barcode</th>
+                                    <th>Stock</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>Updated</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.map((item, index) => (
+                                    <tr key={item.id || index}>
+                                        <td>
+                                            <div className={styles.productCell}>
+                                                <div className={styles.productName}>
+                                                    {item.product || item.product_name || item.name || 'N/A'}
+                                                </div>
+                                                {(item.variant || item.product_variant) && (
+                                                    <div className={styles.productVariant}>
+                                                        {item.variant || item.product_variant}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <code className={styles.barcode}>
+                                                {item.code || item.barcode || 'N/A'}
+                                            </code>
+                                        </td>
+                                        <td>
+                                            <div 
+                                                className={styles.stockCell}
+                                                onClick={() => openTimeline(item)}
+                                                title="Click to view stock timeline"
                                             >
-                                                {item.stock}
-                                            </motion.button>
-                                        </TableCell>
-
-                                        <TableCell>
-                      <span className={styles.warehouseTag}>
-                        {item.warehouse}
-                      </span>
-                                        </TableCell>
-                                    </motion.tr>
+                                                <span className={styles.stockNumber}>
+                                                    {item.stock || item.quantity || 0}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className={styles.locationCell}>
+                                                <MapPin size={12} />
+                                                <span>
+                                                    {item.warehouse || item.warehouse_name || item.Warehouse_name || item.location || 'N/A'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className={`${styles.statusBadge} ${
+                                                (item.stock || item.quantity || 0) === 0 ? styles.outOfStock :
+                                                (item.stock || item.quantity || 0) < 10 ? styles.lowStock :
+                                                styles.inStock
+                                            }`}>
+                                                {(item.stock || item.quantity || 0) === 0 ? 'Out of Stock' :
+                                                 (item.stock || item.quantity || 0) < 10 ? 'Low Stock' :
+                                                 'In Stock'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className={styles.dateText}>
+                                                <Calendar size={12} />
+                                                {item.updated_at ? new Date(item.updated_at).toLocaleDateString() : 
+                                                 item.last_updated ? new Date(item.last_updated).toLocaleDateString() :
+                                                 'N/A'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button
+                                                className={styles.actionBtn}
+                                                title="View Details"
+                                            >
+                                                <Eye size={14} />
+                                            </button>
+                                        </td>
+                                    </tr>
                                 ))}
-
-                            {loading && (
-                                <TableRow>
-                                    <TableCell colSpan={3} className={styles.loading}>
-                                        Loading inventory…
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </tbody>
+                        </table>
+                    )}
                 </div>
-            </motion.div>
-
-            {/* PAGINATION */}
-            <div className={styles.pagination}>
-                <button
-                    disabled={page === 1}
-                    onClick={() => setPage((p) => p - 1)}
-                >
-                    Prev
-                </button>
-                <span>
-          {page} / {totalPages}
-        </span>
-                <button
-                    disabled={page === totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                >
-                    Next
-                </button>
             </div>
 
-            {/* PRODUCT TRACKER (TIMELINE) */}
-            {openTracker && selectedProduct && (
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className={styles.pagination}>
+                    <button
+                        disabled={page === 1}
+                        onClick={() => setPage(page - 1)}
+                        className={`${styles.paginationBtn} ${page === 1 ? styles.disabled : ''}`}
+                    >
+                        Previous
+                    </button>
+                    
+                    <div className={styles.paginationNumbers}>
+                        {/* Show page numbers */}
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                                pageNum = i + 1;
+                            } else if (page <= 3) {
+                                pageNum = i + 1;
+                            } else if (page >= totalPages - 2) {
+                                pageNum = totalPages - 4 + i;
+                            } else {
+                                pageNum = page - 2 + i;
+                            }
+                            
+                            return (
+                                <button
+                                    key={pageNum}
+                                    onClick={() => setPage(pageNum)}
+                                    className={`${styles.paginationNumber} ${page === pageNum ? styles.active : ''}`}
+                                >
+                                    {pageNum}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    
+                    <button
+                        disabled={page === totalPages}
+                        onClick={() => setPage(page + 1)}
+                        className={`${styles.paginationBtn} ${page === totalPages ? styles.disabled : ''}`}
+                    >
+                        Next
+                    </button>
+                    
+                    <span className={styles.paginationInfo}>
+                        Page {page} of {totalPages} ({items.length} items)
+                    </span>
+                </div>
+            )}
+
+            {/* Use ProductTracker Component */}
+            {showTimeline && selectedItem && (
                 <ProductTracker
-                    barcodeOverride={selectedProduct.barcode}
-                    warehouseFilter={activeWarehouse.code}
-                    onClose={() => setOpenTracker(false)}
+                    barcodeOverride={selectedItem.code || selectedItem.barcode}
+                    warehouseFilter={selectedWarehouse}
+                    onClose={closeTimeline}
                 />
             )}
         </div>

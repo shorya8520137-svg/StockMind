@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import WebsiteOrder from "./websiteorder";
+import WebsiteOrder from "./websiteorder.jsx";
 
 export default function Page() {
     return <WebsiteOrder />;

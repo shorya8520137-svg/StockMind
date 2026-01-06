@@ -1,6 +1,6 @@
 "use client";
 
-import ReturnModal from "../selftransfer/ReturnModal";
+import ReturnModal from "../selftransfer/ReturnModal.jsx";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 

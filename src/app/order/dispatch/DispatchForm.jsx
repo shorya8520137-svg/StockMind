@@ -2,9 +2,9 @@
 import React, { useEffect, useState } from "react";
 import styles from "./dispatchForm.module.css";
 
-/* ✅ YOUR ORIGINAL API BASES - UNTOUCHED */
+/* ✅ UPDATED API ENDPOINTS */
 const API = "https://13-201-222-24.nip.io/api/dispatch";
-const CREATE_API = "https://13-201-222-24.nip.io/api/dispatch-beta";
+const CREATE_API = "https://13-201-222-24.nip.io/api/dispatch";
 
 export default function DispatchForm() {
     const [warehouses, setWarehouses] = useState([]);
@@ -20,12 +20,14 @@ export default function DispatchForm() {
 
     const initialForm = {
         orderType: "Offline",
-        warehouse: "",
+        email: "",
+        selectedWarehouse: "",
         orderRef: "",
         customerName: "",
         awb: "",
         logistics: "",
         paymentMode: "",
+        parcelType: "Forward",
         processedBy: "",
         invoiceAmount: "",
         weight: "",
@@ -40,22 +42,102 @@ export default function DispatchForm() {
 
     /* ------------------ YOUR ORIGINAL DROPDOWNS ------------------ */
     useEffect(() => {
-        fetch(`${API}/warehouses`).then(r => r.json()).then(setWarehouses);
-        fetch(`${API}/logistics`).then(r => r.json()).then(setLogistics);
-        fetch(`${API}/processed-persons`).then(r => r.json()).then(setExecutives);
+        console.log('🔄 Loading dropdown data...');
+        
+        fetch(`${API}/warehouses`)
+            .then(r => {
+                console.log('📦 Warehouses response status:', r.status);
+                return r.json();
+            })
+            .then(data => {
+                console.log('📦 Warehouses data:', data);
+                setWarehouses(Array.isArray(data) ? data : []);
+            })
+            .catch(err => console.error('❌ Warehouses error:', err));
+            
+        fetch(`${API}/logistics`)
+            .then(r => {
+                console.log('🚚 Logistics response status:', r.status);
+                return r.json();
+            })
+            .then(data => {
+                console.log('🚚 Logistics data:', data);
+                setLogistics(Array.isArray(data) ? data : []);
+            })
+            .catch(err => console.error('❌ Logistics error:', err));
+            
+        fetch(`${API}/processed-persons`)
+            .then(r => {
+                console.log('👤 Executives response status:', r.status);
+                return r.json();
+            })
+            .then(data => {
+                console.log('👤 Executives data:', data);
+                setExecutives(Array.isArray(data) ? data : []);
+            })
+            .catch(err => console.error('❌ Executives error:', err));
     }, []);
 
     /* ------------------ NEW: STOCK CHECKER ------------------ */
     const checkStock = async (barcode) => {
-        if (!barcode || stockData[barcode]) return;
+        if (!barcode || stockData[barcode] || !form.selectedWarehouse) return;
+
+        console.log('📦 Checking stock for:', { barcode, warehouse: form.selectedWarehouse });
 
         try {
-            const res = await fetch(`https://13-201-222-24.nip.io/api/product-tracking/${barcode}`);
+            const url = `${API}/check-inventory?warehouse=${encodeURIComponent(form.selectedWarehouse)}&barcode=${barcode}&qty=1`;
+            console.log('📦 Stock check URL:', url);
+            
+            const res = await fetch(url);
             const data = await res.json();
-            setStockData(prev => ({ ...prev, [barcode]: data.finalStock || 0 }));
-        } catch {
-            setStockData(prev => ({ ...prev, [barcode]: null }));
+            
+            console.log('📦 Stock check result:', data);
+            
+            setStockData(prev => ({ ...prev, [barcode]: data }));
+        } catch (error) {
+            console.error('❌ Stock check failed:', error);
+            setStockData(prev => ({ ...prev, [barcode]: { available: 0, ok: false } }));
         }
+    };
+
+    /* ------------------ INVENTORY VALIDATION ------------------ */
+    const validateInventory = async (index, qtyOverride = null) => {
+        const product = products[index];
+        if (!form.selectedWarehouse || !product.name) return;
+
+        const barcode = extractBarcode(product.name);
+        const qty = qtyOverride || product.qty;
+
+        if (!barcode) return;
+
+        console.log('🔍 Validating inventory:', {
+            warehouse: form.selectedWarehouse,
+            barcode,
+            qty,
+            productName: product.name
+        });
+
+        try {
+            const url = `${API}/check-inventory?warehouse=${encodeURIComponent(form.selectedWarehouse)}&barcode=${barcode}&qty=${qty}`;
+            console.log('🔍 Validation URL:', url);
+            
+            const res = await fetch(url);
+            const result = await res.json();
+            
+            console.log('🔍 Validation result:', result);
+            
+            setStockData(prev => ({ ...prev, [`${barcode}_${index}`]: result }));
+        } catch (err) {
+            console.error('❌ Stock validation failed:', err);
+            setStockData(prev => ({ ...prev, [`${barcode}_${index}`]: { available: 0, ok: false, message: 'Validation failed' } }));
+        }
+    };
+
+    /* ------------------ EXTRACT BARCODE ------------------ */
+    const extractBarcode = (str) => {
+        if (!str || !str.includes("|")) return "";
+        const parts = str.split("|").map((s) => s.trim());
+        return parts[parts.length - 1];
     };
 
     /* ------------------ YOUR ORIGINAL PRODUCT SEARCH ------------------ */
@@ -64,8 +146,20 @@ export default function DispatchForm() {
         updated[index].name = value;
 
         if (value.length > 2) {
-            const res = await fetch(`${API}/search-products?query=${value}`);
-            updated[index].suggestions = await res.json();
+            try {
+                const res = await fetch(`${API}/search-products?query=${encodeURIComponent(value)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    // Handle both array response and object with data property
+                    updated[index].suggestions = Array.isArray(data) ? data : (data.data || []);
+                } else {
+                    console.error('Product search failed:', res.status);
+                    updated[index].suggestions = [];
+                }
+            } catch (error) {
+                console.error('Product search error:', error);
+                updated[index].suggestions = [];
+            }
         } else {
             updated[index].suggestions = [];
         }
@@ -73,7 +167,10 @@ export default function DispatchForm() {
 
         // Extract barcode for stock check
         const barcodeMatch = value.match(/\| (\w+)$/);
-        if (barcodeMatch) checkStock(barcodeMatch[1]);
+        if (barcodeMatch) {
+            checkStock(barcodeMatch[1]);
+            validateInventory(index);
+        }
     };
 
     const selectProduct = (index, value) => {
@@ -84,7 +181,10 @@ export default function DispatchForm() {
 
         // Extract barcode for stock check
         const barcodeMatch = value.match(/\| (\w+)$/);
-        if (barcodeMatch) checkStock(barcodeMatch[1]);
+        if (barcodeMatch) {
+            checkStock(barcodeMatch[1]);
+            validateInventory(index);
+        }
     };
 
     const addProduct = () =>
@@ -97,12 +197,27 @@ export default function DispatchForm() {
     const submitDispatch = async () => {
         if (loading) return;
 
+        // Check if all products have sufficient stock
+        const hasStockIssues = products.some((product, index) => {
+            const barcode = extractBarcode(product.name);
+            const validationKey = `${barcode}_${index}`;
+            const validation = stockData[validationKey];
+            return validation && !validation.ok;
+        });
+
+        if (hasStockIssues) {
+            setError("Cannot dispatch - insufficient stock for some products");
+            return;
+        }
+
         const payload = {
-            selectedWarehouse: form.warehouse,
+            orderType: form.orderType,
+            email: form.email,
+            selectedWarehouse: form.selectedWarehouse,
             selectedLogistics: form.logistics,
             selectedExecutive: form.processedBy,
             selectedPaymentMode: form.paymentMode,
-            parcelType: "Forward",
+            parcelType: form.parcelType,
             orderRef: form.orderRef,
             customerName: form.customerName,
             awbNumber: form.awb,
@@ -160,7 +275,8 @@ export default function DispatchForm() {
                     <div className={styles.successContent}>
                         <h2 className={styles.successTitle}>Dispatch Created Successfully!</h2>
                         <p className={styles.successMessage}>
-                            Order <strong>{form.orderRef}</strong> has been created for
+                            Order <strong>{form.orderRef}</strong> has been dispatched from
+                            <strong> {form.selectedWarehouse}</strong> to customer
                             <strong> {form.customerName}</strong>
                         </p>
                         <div className={styles.successSpinner} />
@@ -200,10 +316,23 @@ export default function DispatchForm() {
                         </select>
                     </div>
 
+                    {form.orderType === "Website" && (
+                        <div className={styles.formGroup}>
+                            <label className={styles.label}>Customer Email</label>
+                            <input
+                                className={styles.input}
+                                placeholder="customer@email.com"
+                                value={form.email}
+                                onChange={e => update("email", e.target.value)}
+                                type="email"
+                            />
+                        </div>
+                    )}
+
                     <div className={styles.formGroup}>
-                        <label className={styles.label}>Warehouse *</label>
-                        <select value={form.warehouse} onChange={e => update("warehouse", e.target.value)} className={styles.select} required>
-                            <option value="">Select Warehouse</option>
+                        <label className={styles.label}>Source Warehouse *</label>
+                        <select value={form.selectedWarehouse} onChange={e => update("selectedWarehouse", e.target.value)} className={styles.select} required>
+                            <option value="">Select Source Warehouse</option>
                             {warehouses.map(w => <option key={w} value={w}>{w}</option>)}
                         </select>
                     </div>
@@ -231,29 +360,41 @@ export default function DispatchForm() {
                     </div>
 
                     <div className={styles.formGroup}>
-                        <label className={styles.label}>AWB Number</label>
+                        <label className={styles.label}>AWB Number *</label>
                         <input
                             className={styles.input}
                             placeholder="AWB123456789"
                             value={form.awb}
                             onChange={e => update("awb", e.target.value)}
+                            required
                         />
                     </div>
 
                     <div className={styles.formGroup}>
-                        <label className={styles.label}>Logistics</label>
-                        <select value={form.logistics} onChange={e => update("logistics", e.target.value)} className={styles.select}>
+                        <label className={styles.label}>Logistics Partner *</label>
+                        <select value={form.logistics} onChange={e => update("logistics", e.target.value)} className={styles.select} required>
                             <option value="">Select Logistics</option>
                             {logistics.map(l => <option key={l} value={l}>{l}</option>)}
                         </select>
                     </div>
 
                     <div className={styles.formGroup}>
-                        <label className={styles.label}>Payment Mode</label>
-                        <select value={form.paymentMode} onChange={e => update("paymentMode", e.target.value)} className={styles.select}>
+                        <label className={styles.label}>Payment Mode *</label>
+                        <select value={form.paymentMode} onChange={e => update("paymentMode", e.target.value)} className={styles.select} required>
                             <option value="">Select Payment</option>
                             <option>COD</option>
                             <option>Prepaid</option>
+                            <option>UPI</option>
+                            <option>Credit Card</option>
+                        </select>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <label className={styles.label}>Parcel Type</label>
+                        <select value={form.parcelType} onChange={e => update("parcelType", e.target.value)} className={styles.select}>
+                            <option>Forward</option>
+                            <option>Forward + Return</option>
+                            <option>Return</option>
                         </select>
                     </div>
 
@@ -333,17 +474,28 @@ export default function DispatchForm() {
                                     <div className={styles.suggestions}>
                                         {p.suggestions.map(s => (
                                             <div
-                                                key={s.barcode}
+                                                key={s.p_id || s.barcode}
                                                 className={styles.suggestionItem}
                                                 onClick={() =>
-                                                    selectProduct(i, `${s.product_name} | ${s.product_variant} | ${s.barcode}`)
+                                                    selectProduct(i, `${s.product_name} | ${s.product_variant || ''} | ${s.barcode}`)
                                                 }
                                             >
-                                                {s.product_name} ({s.product_variant})
-                                                <span className={styles.barcode}>{s.barcode}</span>
-                                                {stockData[s.barcode] !== undefined && (
+                                                <div className={styles.suggestionContent}>
+                                                    <div className={styles.suggestionName}>
+                                                        {s.product_name}
+                                                    </div>
+                                                    {s.product_variant && (
+                                                        <div className={styles.suggestionVariant}>
+                                                            {s.product_variant}
+                                                        </div>
+                                                    )}
+                                                    <div className={styles.suggestionBarcode}>
+                                                        {s.barcode}
+                                                    </div>
+                                                </div>
+                                                {stockData[s.barcode] && (
                                                     <span className={styles.stockBadge}>
-                                                        📦 {stockData[s.barcode] || 'N/A'}
+                                                        📦 {stockData[s.barcode].available || 'N/A'}
                                                     </span>
                                                 )}
                                             </div>
@@ -351,6 +503,29 @@ export default function DispatchForm() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Stock Validation Display */}
+                            {(() => {
+                                const barcode = extractBarcode(p.name);
+                                const validationKey = `${barcode}_${i}`;
+                                const validation = stockData[validationKey];
+                                
+                                if (validation && barcode) {
+                                    return (
+                                        <div className={styles.validationMsg} style={{ 
+                                            color: validation.ok ? "green" : "red",
+                                            fontSize: "12px",
+                                            marginTop: "4px"
+                                        }}>
+                                            {validation.ok 
+                                                ? `✅ Available: ${validation.available}` 
+                                                : `❌ ${validation.message || 'Insufficient stock'}`
+                                            }
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })()}
 
                             <div className={styles.qtyGroup}>
                                 <input
@@ -363,6 +538,7 @@ export default function DispatchForm() {
                                         const u = [...products];
                                         u[i].qty = parseInt(e.target.value) || 1;
                                         setProducts(u);
+                                        validateInventory(i, u[i].qty);
                                     }}
                                 />
                             </div>

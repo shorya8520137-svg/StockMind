@@ -1,18 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import SelfTransfer from "./SelfTransfer";
-import TransferFIFO from "./TransferFIFO";
-import SemiDial from "./SemiDial";
+import SelfTransfer from "./SelfTransfer.jsx";
+import TransferForm from "../../products/TransferForm.jsx";
+import SemiDial from "./SemiDial.jsx";
 
 export default function Page() {
-    const [openFIFO, setOpenFIFO] = useState(false);
+    const [openTransfer, setOpenTransfer] = useState(false);
 
     function handleCommand(cmd) {
         console.log("COMMAND:", cmd);
 
         if (cmd === "TRANSFER_FIFO") {
-            setOpenFIFO(true);
+            setOpenTransfer(true);
         }
     }
 
@@ -25,8 +25,8 @@ export default function Page() {
             <SelfTransfer />
 
             {/* Transfer Form (ONLY on command) */}
-            {openFIFO && (
-                <TransferFIFO onClose={() => setOpenFIFO(false)} />
+            {openTransfer && (
+                <TransferForm onClose={() => setOpenTransfer(false)} />
             )}
         </>
     );

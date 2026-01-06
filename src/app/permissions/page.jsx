@@ -1,4 +1,4 @@
-import PermissionsManager from "./PermissionsManager";
+import RealPermissionsManager from "./RealPermissionsManager.jsx";
 
 export default function PermissionsPage() {
     return (
@@ -9,7 +9,7 @@ export default function PermissionsPage() {
             margin: 0, 
             overflow: "hidden" 
         }}>
-            <PermissionsManager />
+            <RealPermissionsManager />
         </div>
     );
 }

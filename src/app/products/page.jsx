@@ -1,5 +1,9 @@
 import ProductManager from './ProductManager';
 
 export default function ProductsPage() {
-    return <ProductManager />;
+    return (
+        <div style={{ height: "100vh", overflow: "hidden" }}>
+            <ProductManager />
+        </div>
+    );
 }

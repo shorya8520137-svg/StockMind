@@ -17,7 +17,8 @@ import {
     Box,
     LogOut,
     Plus,
-    MessageSquare
+    MessageSquare,
+    Shield
 } from "lucide-react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
@@ -161,7 +162,6 @@ const InventoryMenu = ({ onOpenOperation }) => {
     const isInventoryRoute = pathname.startsWith("/inventory");
     const isOrdersRoute = pathname.startsWith("/order");
     const isTrackingRoute = pathname.startsWith("/tracking");
-    const isMessagesRoute = pathname.startsWith("/messages");
     const isPermissionsRoute = pathname.startsWith("/permissions");
 
     // Local state for expanded submenus (only relevant when sidebar is NOT collapsed)
@@ -293,19 +293,6 @@ const InventoryMenu = ({ onOpenOperation }) => {
                             >
                                 <MapPin size={collapsed ? 20 : 18} />
                                 {!collapsed && <span>Tracking</span>}
-                            </Link>
-                        </SidebarMenuItem>
-                    )}
-
-                    {/* MESSAGES */}
-                    {hasPermission(PERMISSIONS.MESSAGES_VIEW) && (
-                        <SidebarMenuItem>
-                            <Link 
-                                href="/messages" 
-                                className={cn(sidebarMenuButtonVariants({ active: isMessagesRoute, collapsed }))}
-                            >
-                                <MessageSquare size={collapsed ? 20 : 18} />
-                                {!collapsed && <span>Team Chat</span>}
                             </Link>
                         </SidebarMenuItem>
                     )}
@@ -501,8 +488,8 @@ const InventoryMenu = ({ onOpenOperation }) => {
                                 href="/permissions" 
                                 className={cn(sidebarMenuButtonVariants({ active: isPermissionsRoute, collapsed }))}
                             >
-                                <Settings size={collapsed ? 20 : 18} />
-                                {!collapsed && <span>System Admin</span>}
+                                <Shield size={collapsed ? 20 : 18} />
+                                {!collapsed && <span>Access Control</span>}
                             </Link>
                         </SidebarMenuItem>
                     )}

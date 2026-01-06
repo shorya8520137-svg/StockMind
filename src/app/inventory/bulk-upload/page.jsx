@@ -1,6 +1,6 @@
 "use client";
 
-import InventoryEntry from "../selftransfer/InventoryEntry";
+import InventoryEntry from "../selftransfer/InventoryEntry.jsx";
 import { useRouter } from "next/navigation";
 
 export default function BulkUploadPage() {

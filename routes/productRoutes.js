@@ -1,89 +1,37 @@
 const express = require('express');
-const router = express.Router();
 const multer = require('multer');
-const path = require('path');
 const ProductController = require('../controllers/productController');
-const authMiddleware = require('../middleware/authMiddleware');
-const permissionMiddleware = require('../middleware/permissionMiddleware');
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/');
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
-    }
-});
+const router = express.Router();
+const upload = multer({ dest: 'uploads/' });
 
-const upload = multer({
-    storage: storage,
-    limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB limit
-    },
-    fileFilter: function (req, file, cb) {
-        const allowedTypes = ['.csv', '.xlsx', '.xls'];
-        const fileExtension = path.extname(file.originalname).toLowerCase();
-        
-        if (allowedTypes.includes(fileExtension)) {
-            cb(null, true);
-        } else {
-            cb(new Error('Invalid file type. Only CSV and Excel files are allowed.'));
-        }
-    }
-});
+// Product CRUD
+router.get('/', ProductController.getAllProducts);
+router.post('/', ProductController.createProduct);
+router.put('/:id', ProductController.updateProduct);
+router.delete('/:id', ProductController.deleteProduct);
 
-// All product routes require authentication
-router.use(authMiddleware);
+// Barcode Search
+router.get('/search/:barcode', ProductController.searchByBarcode);
 
-// Product CRUD operations
-router.get('/', 
-    permissionMiddleware('products.view'),
-    ProductController.getAllProducts
-);
+// Inventory Management
+router.get('/inventory', ProductController.getInventory);
+router.get('/inventory/by-warehouse/:warehouse', ProductController.getInventoryByWarehouse);
+router.get('/inventory/export', ProductController.exportInventory);
+router.post('/transfer', ProductController.transferProduct);
+router.post('/bulk/transfer', ProductController.bulkTransferProducts);
+router.get('/inventory/:barcode', ProductController.getProductInventory);
 
-router.get('/:identifier', 
-    permissionMiddleware('products.view'),
-    ProductController.getProduct
-);
+// Bulk Import
+router.post('/bulk/import', upload.single('file'), ProductController.bulkImport);
+router.post('/bulk/import/progress', upload.single('file'), ProductController.bulkImportWithProgress);
 
-router.post('/', 
-    permissionMiddleware('products.create'),
-    ProductController.createProduct
-);
+// Categories
+router.get('/categories/all', ProductController.getCategories);
+router.post('/categories', ProductController.createCategory);
 
-router.put('/:id', 
-    permissionMiddleware('products.edit'),
-    ProductController.updateProduct
-);
-
-router.delete('/:id', 
-    permissionMiddleware('products.delete'),
-    ProductController.deleteProduct
-);
-
-// Bulk import
-router.post('/bulk/import', 
-    permissionMiddleware('products.bulk_import'),
-    upload.single('file'),
-    ProductController.bulkImport
-);
-
-// Download template
-router.get('/bulk/template', 
-    permissionMiddleware('products.view'),
-    ProductController.downloadTemplate
-);
-
-// Category management
-router.get('/categories/all', 
-    permissionMiddleware('products.view'),
-    ProductController.getCategories
-);
-
-router.post('/categories', 
-    permissionMiddleware('products.categories'),
-    ProductController.createCategory
-);
+// Locations
+router.get('/warehouses', ProductController.getWarehouses);
+router.get('/stores', ProductController.getStores);
 
 module.exports = router;

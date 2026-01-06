@@ -1,6 +1,6 @@
 "use client";
 
-import DamageRecoveryModal from "../selftransfer/DamageRecoveryModal";
+import DamageRecoveryModal from "../selftransfer/DamageRecoveryModal.jsx";
 import { useRouter } from "next/navigation";
 
 export default function DamagePage() {

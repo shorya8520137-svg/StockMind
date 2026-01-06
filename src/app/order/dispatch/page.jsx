@@ -1,6 +1,6 @@
 "use client";
 
-import DispatchForm from "../dispatch/DispatchForm";
+import DispatchForm from "../dispatch/DispatchForm.jsx";
 
 export default function DispatchPage() {
     return (
