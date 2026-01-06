@@ -18,7 +18,8 @@ import {
     LogOut,
     Plus,
     MessageSquare,
-    Shield
+    Shield,
+    User
 } from "lucide-react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
@@ -163,6 +164,7 @@ const InventoryMenu = ({ onOpenOperation }) => {
     const isOrdersRoute = pathname.startsWith("/order");
     const isTrackingRoute = pathname.startsWith("/tracking");
     const isPermissionsRoute = pathname.startsWith("/permissions");
+    const isProfileRoute = pathname.startsWith("/profile");
 
     // Local state for expanded submenus (only relevant when sidebar is NOT collapsed)
     const [inventoryOpen, setInventoryOpen] = React.useState(true); // Default open for visibility
@@ -481,6 +483,17 @@ const InventoryMenu = ({ onOpenOperation }) => {
                         </MenuItemWithSub>
                     )}
 
+                    {/* MESSAGES */}
+                    <SidebarMenuItem>
+                        <Link 
+                            href="/messages" 
+                            className={cn(sidebarMenuButtonVariants({ active: pathname === "/messages", collapsed }))}
+                        >
+                            <MessageSquare size={collapsed ? 20 : 18} />
+                            {!collapsed && <span>Messages</span>}
+                        </Link>
+                    </SidebarMenuItem>
+
                     {/* PERMISSIONS MANAGEMENT */}
                     {hasPermission(PERMISSIONS.SYSTEM_PERMISSIONS) && (
                         <SidebarMenuItem>
@@ -493,6 +506,17 @@ const InventoryMenu = ({ onOpenOperation }) => {
                             </Link>
                         </SidebarMenuItem>
                     )}
+
+                    {/* PROFILE */}
+                    <SidebarMenuItem>
+                        <Link 
+                            href="/profile" 
+                            className={cn(sidebarMenuButtonVariants({ active: isProfileRoute, collapsed }))}
+                        >
+                            <User size={collapsed ? 20 : 18} />
+                            {!collapsed && <span>My Profile</span>}
+                        </Link>
+                    </SidebarMenuItem>
 
                 </SidebarMenu>
             </SidebarContent>
