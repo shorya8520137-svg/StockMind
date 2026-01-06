@@ -17,7 +17,6 @@ import {
     Box,
     LogOut,
     Plus,
-    MessageSquare,
     Shield,
     User
 } from "lucide-react";
@@ -483,16 +482,7 @@ const InventoryMenu = ({ onOpenOperation }) => {
                         </MenuItemWithSub>
                     )}
 
-                    {/* MESSAGES */}
-                    <SidebarMenuItem>
-                        <Link 
-                            href="/messages" 
-                            className={cn(sidebarMenuButtonVariants({ active: pathname === "/messages", collapsed }))}
-                        >
-                            <MessageSquare size={collapsed ? 20 : 18} />
-                            {!collapsed && <span>Messages</span>}
-                        </Link>
-                    </SidebarMenuItem>
+
 
                     {/* PERMISSIONS MANAGEMENT */}
                     {hasPermission(PERMISSIONS.SYSTEM_PERMISSIONS) && (
