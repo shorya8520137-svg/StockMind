@@ -4,7 +4,7 @@ import styles from "./websiteorder.module.css";
 import { Download } from "lucide-react";
 import * as XLSX from "xlsx";
 
-const API = "https://13-201-222-24.nip.io/api/website/orders";
+const API = "https://api.hunyhuny.org/api/website/orders";
 const ROWS_PER_PAGE = 6;
 
 export default function WebsiteOrder() {

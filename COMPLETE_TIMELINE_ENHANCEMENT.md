@@ -109,10 +109,10 @@
 ### API Testing
 ```bash
 # Test timeline API directly
-curl "https://13-201-222-24.nip.io/api/timeline/XYZ789"
+curl "https://api.hunyhuny.org/api/timeline/XYZ789"
 
 # Test with filters
-curl "https://13-201-222-24.nip.io/api/timeline/XYZ789?warehouse=BLR_WH&dateFrom=2025-01-01"
+curl "https://api.hunyhuny.org/api/timeline/XYZ789?warehouse=BLR_WH&dateFrom=2025-01-01"
 ```
 
 ## 📊 Expected Timeline Display

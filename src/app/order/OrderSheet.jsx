@@ -71,7 +71,7 @@ export default function OrderSheet() {
             setError('');
             
             // Use the updated dispatch tracking API
-            const response = await fetch('https://13-201-222-24.nip.io/api/order-tracking');
+            const response = await fetch('https://api.hunyhuny.org/api/order-tracking');
             const data = await response.json();
             
             if (data.success) {
@@ -129,7 +129,7 @@ export default function OrderSheet() {
         setTimelineLoading(true);
         
         try {
-            const response = await fetch(`https://13-201-222-24.nip.io/api/order-tracking/${order.id}/timeline`);
+            const response = await fetch(`https://api.hunyhuny.org/api/order-tracking/${order.id}/timeline`);
             const data = await response.json();
             
             if (data.success) {
@@ -398,7 +398,7 @@ export default function OrderSheet() {
         setDeleting(true);
         
         try {
-            const response = await fetch(`https://13-201-222-24.nip.io/api/order-tracking/${dispatchId}`, {
+            const response = await fetch(`https://api.hunyhuny.org/api/order-tracking/${dispatchId}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'

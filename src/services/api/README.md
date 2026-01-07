@@ -52,7 +52,7 @@ import {
 - `parseCSV(content, warehouse)` - Parse CSV content
 - `validateRow(row)` - Validate row data
 
-**Endpoint**: `POST https://13-201-222-24.nip.io/api/bulk-upload`
+**Endpoint**: `POST https://api.hunyhuny.org/api/bulk-upload`
 
 ### 📊 Inventory (`inventory.js`)
 - `getInventory(filters)` - Get inventory with filters
@@ -94,7 +94,7 @@ import {
 ### Base Configuration (`index.js`)
 ```javascript
 export const API_CONFIG = {
-    BASE_URL: 'https://13-201-222-24.nip.io/api',
+    BASE_URL: 'https://api.hunyhuny.org/api',
     TIMEOUT: 30000,
     HEADERS: {
         'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ try {
 
 ## 🔧 Environment Variables
 
-- `NEXT_PUBLIC_API_BASE` - API base URL (default: https://13-201-222-24.nip.io/api)
+- `NEXT_PUBLIC_API_BASE` - API base URL (default: https://api.hunyhuny.org/api)
 - `NEXT_PUBLIC_API_TIMEOUT` - Request timeout in ms (default: 30000)
 
 ## 📝 Notes

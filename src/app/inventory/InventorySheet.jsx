@@ -7,6 +7,7 @@ import { getMockInventoryResponse } from "../../utils/mockInventoryData";
 import ProductTracker from "./ProductTracker";
 
 const PAGE_SIZE = 50;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.hunyhuny.org/api';
 
 const WAREHOUSES = [
     { code: "GGM_WH", name: "Gurgaon Warehouse", city: "Gurgaon" },
@@ -81,7 +82,7 @@ export default function InventorySheet() {
                 params.append('dateTo', dateTo);
             }
 
-            console.log('API URL:', `https://13-201-222-24.nip.io/api/inventory?${params}`);
+            console.log('API URL:', `${API_BASE}/inventory?${params}`);
             console.log('🔍 Inventory Filter Parameters:', {
                 warehouse: selectedWarehouse,
                 dateFrom,
@@ -95,7 +96,7 @@ export default function InventorySheet() {
             });
             console.log('🏢 CRITICAL: Warehouse filter should be:', selectedWarehouse);
 
-            const response = await fetch(`https://13-201-222-24.nip.io/api/inventory?${params}`, {
+            const response = await fetch(`${API_BASE}/inventory?${params}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
@@ -279,7 +280,7 @@ export default function InventorySheet() {
 
         if (query.length >= 2) {
             try {
-                const response = await fetch(`https://13-201-222-24.nip.io/api/products?search=${encodeURIComponent(query)}&limit=5`, {
+                const response = await fetch(`${API_BASE}/products?search=${encodeURIComponent(query)}&limit=5`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'
@@ -364,9 +365,9 @@ export default function InventorySheet() {
             }
 
             console.log('🔍 Loading inventory for warehouse:', warehouseCode);
-            console.log('API URL:', `https://13-201-222-24.nip.io/api/inventory?${params}`);
+            console.log('API URL:', `${API_BASE}/inventory?${params}`);
 
-            const response = await fetch(`https://13-201-222-24.nip.io/api/inventory?${params}`, {
+            const response = await fetch(`${API_BASE}/inventory?${params}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
@@ -532,7 +533,7 @@ export default function InventorySheet() {
             console.log('🔽 Exporting with params:', params.toString());
             console.log('🏢 Export warehouse:', exportWarehouse || 'All Warehouses');
 
-            const response = await fetch(`https://13-201-222-24.nip.io/api/inventory/export?${params}`, {
+            const response = await fetch(`${API_BASE}/inventory/export?${params}`, {
                 method: 'GET'
             });
 
@@ -613,7 +614,7 @@ export default function InventorySheet() {
                             const testWarehouses = ['BLR_WH', 'MUM_WH', 'GGM_WH'];
                             
                             testWarehouses.forEach(wh => {
-                                fetch(`https://13-201-222-24.nip.io/api/inventory?warehouse=${wh}&limit=5`)
+                                fetch(`${API_BASE}/inventory?warehouse=${wh}&limit=5`)
                                     .then(res => {
                                         console.log(`${wh} API Status:`, res.status);
                                         return res.json();

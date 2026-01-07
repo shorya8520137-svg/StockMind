@@ -71,7 +71,7 @@ const ProductManager = () => {
                 category: selectedCategory
             });
 
-            const response = await fetch(`https://13-201-222-24.nip.io/api/products?${params}`, {
+            const response = await fetch(`https://api.hunyhuny.org/api/products?${params}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -102,7 +102,7 @@ const ProductManager = () => {
     const fetchCategories = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('https://13-201-222-24.nip.io/api/products/categories/all', {
+            const response = await fetch('https://api.hunyhuny.org/api/products/categories/all', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -199,8 +199,8 @@ const ProductManager = () => {
         try {
             const token = localStorage.getItem('token');
             const url = editingProduct
-                ? `https://13-201-222-24.nip.io/api/products/${editingProduct.p_id}`
-                : 'https://13-201-222-24.nip.io/api/products';
+                ? `https://api.hunyhuny.org/api/products/${editingProduct.p_id}`
+                : 'https://api.hunyhuny.org/api/products';
 
             const method = editingProduct ? 'PUT' : 'POST';
 
@@ -264,7 +264,7 @@ const ProductManager = () => {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`https://13-201-222-24.nip.io/api/products/${productId}`, {
+            const response = await fetch(`https://api.hunyhuny.org/api/products/${productId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -385,7 +385,7 @@ const ProductManager = () => {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('https://13-201-222-24.nip.io/api/products/categories', {
+            const response = await fetch('https://api.hunyhuny.org/api/products/categories', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -425,7 +425,7 @@ const ProductManager = () => {
     const handleScanBarcode = async (barcode) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`https://13-201-222-24.nip.io/api/products/inventory/${barcode}`, {
+            const response = await fetch(`https://api.hunyhuny.org/api/products/inventory/${barcode}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'

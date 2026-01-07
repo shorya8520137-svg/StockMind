@@ -3,8 +3,8 @@ import React, { useEffect, useState } from "react";
 import styles from "../order/dispatch/dispatchForm.module.css";
 
 /* API ENDPOINTS */
-const API = "https://13-201-222-24.nip.io/api/dispatch";
-const PRODUCTS_API = "https://13-201-222-24.nip.io/api/products";
+const API = "https://api.hunyhuny.org/api/dispatch";
+const PRODUCTS_API = "https://api.hunyhuny.org/api/products";
 
 export default function TransferForm({ onClose }) {
     const [warehouses, setWarehouses] = useState([]);
@@ -68,7 +68,7 @@ export default function TransferForm({ onClose }) {
         if (!barcode || stockData[barcode]) return;
 
         try {
-            const res = await fetch(`https://13-201-222-24.nip.io/api/product-tracking/${barcode}`);
+            const res = await fetch(`https://api.hunyhuny.org/api/product-tracking/${barcode}`);
             const data = await res.json();
             setStockData(prev => ({ ...prev, [barcode]: data.finalStock || 0 }));
         } catch {
@@ -146,7 +146,7 @@ export default function TransferForm({ onClose }) {
             setLoading(true);
             setError("");
 
-            const res = await fetch(`https://13-201-222-24.nip.io/api/self-transfer/create`, {
+            const res = await fetch(`https://api.hunyhuny.org/api/self-transfer/create`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),

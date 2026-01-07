@@ -9,7 +9,7 @@ import { api } from "../../utils/api";
  * ✅ Backend AWS
  * ❌ No window
  */
-const API_BASE_URL = "https://13-201-222-24.nip.io";
+const API_BASE_URL = "https://api.hunyhuny.org";
 
 export default function DispatchForm() {
     const initialState = {

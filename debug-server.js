@@ -3,7 +3,7 @@
 
 const axios = require('axios');
 
-const API_BASE = 'https://13-201-222-24.nip.io/api';
+const API_BASE = 'https://api.hunyhuny.org/api';
 
 async function debugServer() {
     console.log('🔍 Debugging Server Status...\n');
@@ -12,7 +12,7 @@ async function debugServer() {
         // Test 1: Check if server is running
         console.log('1. Testing server health check...');
         try {
-            const response = await axios.get('https://13-201-222-24.nip.io/');
+            const response = await axios.get('https://api.hunyhuny.org/');
             console.log('✅ Server is running');
             console.log('Response:', response.data);
         } catch (error) {

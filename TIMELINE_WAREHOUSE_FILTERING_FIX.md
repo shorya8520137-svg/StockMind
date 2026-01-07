@@ -12,13 +12,13 @@
 
 **Before (WRONG):**
 ```javascript
-const response = await fetch(`https://13-201-222-24.nip.io/api/timeline/${item.barcode}`);
+const response = await fetch(`https://api.hunyhuny.org/api/timeline/${item.barcode}`);
 // No warehouse filter passed - shows ALL movements
 ```
 
 **After (CORRECT):**
 ```javascript
-let url = `https://13-201-222-24.nip.io/api/timeline/${item.barcode}`;
+let url = `https://api.hunyhuny.org/api/timeline/${item.barcode}`;
 
 // Add warehouse filter if selected
 if (selectedWarehouse && selectedWarehouse !== 'ALL') {

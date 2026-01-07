@@ -106,7 +106,7 @@ async function setupPermissionsSystem() {
         console.log('\n6. Testing login...');
         
         const axios = require('axios');
-        const API_BASE = 'https://13-201-222-24.nip.io/api';
+        const API_BASE = 'https://api.hunyhuny.org/api';
         
         try {
             const response = await axios.post(`${API_BASE}/auth/login`, {

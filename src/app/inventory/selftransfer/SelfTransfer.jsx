@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import styles from "./selfTransfer.module.css";
 
-const API_BASE = "https://13-201-222-24.nip.io";
+const API_BASE = "https://api.hunyhuny.org";
 
 const MOVEMENT_META = {
     OPENING: { label: "Opening", color: "#22c55e" },

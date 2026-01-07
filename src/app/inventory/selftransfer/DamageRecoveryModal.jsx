@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import styles from "./damageRecovery.module.css";
 
-const API = "https://13-201-222-24.nip.io/api/dispatch";
+const API = "https://api.hunyhuny.org/api/dispatch";
 
 export default function DamageRecoveryModal({ onClose }) {
     const [locationType, setLocationType] = useState("WAREHOUSE");
@@ -104,8 +104,8 @@ export default function DamageRecoveryModal({ onClose }) {
             await Promise.all(
                 validRows.map(r => {
                     const endpoint = action === "damage" 
-                        ? "https://13-201-222-24.nip.io/api/damage-recovery/damage"
-                        : "https://13-201-222-24.nip.io/api/damage-recovery/recover";
+                        ? "https://api.hunyhuny.org/api/damage-recovery/damage"
+                        : "https://api.hunyhuny.org/api/damage-recovery/recover";
                     return fetch(endpoint, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },

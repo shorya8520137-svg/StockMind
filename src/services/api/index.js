@@ -1,6 +1,6 @@
 // Central API configuration
 export const API_CONFIG = {
-    BASE_URL: process.env.NEXT_PUBLIC_API_BASE || 'https://13-201-222-24.nip.io/api',
+    BASE_URL: process.env.NEXT_PUBLIC_API_BASE || 'https://api.hunyhuny.org/api',
     TIMEOUT: 30000,
     HEADERS: {
         'Content-Type': 'application/json',

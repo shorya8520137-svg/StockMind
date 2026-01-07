@@ -56,6 +56,9 @@ app.use('/api/self-transfer', require('./routes/selfTransferRoutes'));
 // permissions routes
 app.use('/api', require('./routes/permissionsRoutes'));
 
+// dashboard routes
+app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+
 // ===============================
 // HEALTH CHECK
 // ===============================

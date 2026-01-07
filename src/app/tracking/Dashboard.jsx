@@ -5,7 +5,7 @@ import TrackingMap from "./TrackingMap";
 import Orders from "./Order";
 import "./dashboard.css";
 
-const API_BASE = "https://13-201-222-24.nip.io";
+const API_BASE = "https://api.hunyhuny.org";
 const POLL_INTERVAL = 15000;
 
 export default function Dashboard() {

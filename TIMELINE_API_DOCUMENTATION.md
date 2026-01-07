@@ -124,7 +124,7 @@ The frontend calls this API from:
 
 **Frontend API Call:**
 ```javascript
-const response = await fetch(`https://13-201-222-24.nip.io/api/timeline/${productCode}`);
+const response = await fetch(`https://api.hunyhuny.org/api/timeline/${productCode}`);
 const data = await response.json();
 ```
 
@@ -134,15 +134,15 @@ Test the API endpoints:
 
 1. **Get timeline for XYZ789:**
    ```
-   curl "https://13-201-222-24.nip.io/api/timeline/XYZ789"
+   curl "https://api.hunyhuny.org/api/timeline/XYZ789"
    ```
 
 2. **Get timeline with filters:**
    ```
-   curl "https://13-201-222-24.nip.io/api/timeline/XYZ789?warehouse=BLR_WH&dateFrom=2025-01-01"
+   curl "https://api.hunyhuny.org/api/timeline/XYZ789?warehouse=BLR_WH&dateFrom=2025-01-01"
    ```
 
 3. **Get timeline summary:**
    ```
-   curl "https://13-201-222-24.nip.io/api/timeline?warehouse=BLR_WH"
+   curl "https://api.hunyhuny.org/api/timeline?warehouse=BLR_WH"
    ```

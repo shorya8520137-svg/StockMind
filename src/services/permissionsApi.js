@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://13-201-222-24.nip.io/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.hunyhuny.org/api';
 
 export class PermissionsAPI {
     // ================= AUTHENTICATION ================= //

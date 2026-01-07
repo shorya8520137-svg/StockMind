@@ -191,13 +191,13 @@ node server.js
 ### 4. Test API Endpoints
 ```bash
 # Get orders
-curl "https://13-201-222-24.nip.io/api/order-tracking"
+curl "https://api.hunyhuny.org/api/order-tracking"
 
 # Get order timeline
-curl "https://13-201-222-24.nip.io/api/order-tracking/1/timeline"
+curl "https://api.hunyhuny.org/api/order-tracking/1/timeline"
 
 # Report damage
-curl -X POST "https://13-201-222-24.nip.io/api/order-tracking/1/damage" \
+curl -X POST "https://api.hunyhuny.org/api/order-tracking/1/damage" \
   -H "Content-Type: application/json" \
   -d '{"product_name":"Test Product","barcode":"ABC123","warehouse":"GGM_WH","quantity":1}'
 ```

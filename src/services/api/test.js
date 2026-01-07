@@ -56,7 +56,7 @@ export const apiTests = {
      * Test the specific bulk upload endpoint
      */
     async testBulkUploadEndpoint() {
-        console.log('🔍 Testing POST https://13-201-222-24.nip.io/api/bulk-upload');
+        console.log('🔍 Testing POST https://api.hunyhuny.org/api/bulk-upload');
         try {
             // Create sample data
             const sampleRows = [
@@ -101,7 +101,7 @@ export const apiTests = {
         const total = Object.keys(results).length;
 
         console.log(`📊 Test Results: ${passed}/${total} passed`);
-        console.log('🎯 Main endpoint: POST https://13-201-222-24.nip.io/api/bulk-upload');
+        console.log('🎯 Main endpoint: POST https://api.hunyhuny.org/api/bulk-upload');
         return results;
     }
 };
