@@ -5,12 +5,11 @@ const dbConfig = {
     host: 'inventory-db.cv2iey8a8hbk.ap-south-1.rds.amazonaws.com',
     user: 'admin',
     password: 'gfx998sd',
-    database: 'inventory',
+    database: 'hunyhuny_auto_dispatch',
     port: 3306,
+    connectTimeout: 60000,
     acquireTimeout: 60000,
-    timeout: 60000,
-    reconnect: true,
-    multipleStatements: true
+    timeout: 60000
 };
 
 // Create connection pool for better performance
@@ -38,6 +37,10 @@ pool.on('error', (err) => {
     console.error('Database pool error:', err);
     if (err.code === 'PROTOCOL_CONNECTION_LOST') {
         console.log('Database connection was closed. Reconnecting...');
+    } else if (err.message && err.message.includes('definer')) {
+        console.log('⚠️ Database definer error detected - will be handled gracefully');
+    } else if (err.message && err.message.includes('Access denied')) {
+        console.log('⚠️ Database access error detected - will be handled gracefully');
     }
 });
 

@@ -39,3 +39,4 @@ export default function ProtectedRoute({ children, requiredPermission = null }) 
     return <>{children}</>;
 }
 
+
