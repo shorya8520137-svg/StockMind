@@ -35,14 +35,6 @@ export const PERMISSIONS = {
     TRACKING_VIEW: 'tracking.view',
     TRACKING_REAL_TIME: 'tracking.real_time',
     
-    // Messages permissions
-    MESSAGES_VIEW: 'messages.view',
-    MESSAGES_SEND: 'messages.send',
-    MESSAGES_CREATE_CHANNEL: 'messages.create_channel',
-    MESSAGES_DELETE: 'messages.delete',
-    MESSAGES_VOICE: 'messages.voice',
-    MESSAGES_FILE_UPLOAD: 'messages.file_upload',
-    
     // Products permissions
     PRODUCTS_VIEW: 'products.view',
     PRODUCTS_CREATE: 'products.create',
@@ -103,12 +95,6 @@ export const ROLES = {
             PERMISSIONS.ORDERS_REMARKS,
             PERMISSIONS.TRACKING_VIEW,
             PERMISSIONS.TRACKING_REAL_TIME,
-            PERMISSIONS.MESSAGES_VIEW,
-            PERMISSIONS.MESSAGES_SEND,
-            PERMISSIONS.MESSAGES_CREATE_CHANNEL,
-            PERMISSIONS.MESSAGES_DELETE,
-            PERMISSIONS.MESSAGES_VOICE,
-            PERMISSIONS.MESSAGES_FILE_UPLOAD,
             PERMISSIONS.PRODUCTS_VIEW,
             PERMISSIONS.PRODUCTS_CREATE,
             PERMISSIONS.PRODUCTS_EDIT,
@@ -147,11 +133,6 @@ export const ROLES = {
             PERMISSIONS.ORDERS_REMARKS,
             PERMISSIONS.TRACKING_VIEW,
             PERMISSIONS.TRACKING_REAL_TIME,
-            PERMISSIONS.MESSAGES_VIEW,
-            PERMISSIONS.MESSAGES_SEND,
-            PERMISSIONS.MESSAGES_CREATE_CHANNEL,
-            PERMISSIONS.MESSAGES_VOICE,
-            PERMISSIONS.MESSAGES_FILE_UPLOAD,
             PERMISSIONS.PRODUCTS_VIEW,
             PERMISSIONS.PRODUCTS_CREATE,
             PERMISSIONS.PRODUCTS_EDIT,
@@ -180,9 +161,6 @@ export const ROLES = {
             PERMISSIONS.ORDERS_DISPATCH,
             PERMISSIONS.ORDERS_REMARKS,
             PERMISSIONS.TRACKING_VIEW,
-            PERMISSIONS.MESSAGES_VIEW,
-            PERMISSIONS.MESSAGES_SEND,
-            PERMISSIONS.MESSAGES_VOICE,
             PERMISSIONS.OPERATIONS_DISPATCH,
             PERMISSIONS.OPERATIONS_DAMAGE,
             PERMISSIONS.OPERATIONS_RETURN,
@@ -200,8 +178,6 @@ export const ROLES = {
             PERMISSIONS.ORDERS_VIEW,
             PERMISSIONS.ORDERS_DISPATCH,
             PERMISSIONS.TRACKING_VIEW,
-            PERMISSIONS.MESSAGES_VIEW,
-            PERMISSIONS.MESSAGES_SEND,
             PERMISSIONS.OPERATIONS_DISPATCH,
         ],
         color: '#7c3aed', // Purple
@@ -215,7 +191,6 @@ export const ROLES = {
             PERMISSIONS.INVENTORY_VIEW,
             PERMISSIONS.ORDERS_VIEW,
             PERMISSIONS.TRACKING_VIEW,
-            PERMISSIONS.MESSAGES_VIEW,
         ],
         color: '#64748b', // Gray
         priority: 6
@@ -247,12 +222,6 @@ export const FEATURES = {
         requiredPermissions: [PERMISSIONS.TRACKING_VIEW],
         route: '/tracking',
         icon: 'MapPin'
-    },
-    MESSAGES: {
-        name: 'Messages',
-        requiredPermissions: [PERMISSIONS.MESSAGES_VIEW],
-        route: '/messages',
-        icon: 'MessageSquare'
     }
 };
 

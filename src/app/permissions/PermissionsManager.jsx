@@ -64,18 +64,6 @@ const DASHBOARD_COMPONENTS = {
             PERMISSIONS.TRACKING_REAL_TIME
         ]
     },
-    'messages': {
-        name: 'Team Messages',
-        description: 'Internal communication system',
-        permissions: [
-            PERMISSIONS.MESSAGES_VIEW,
-            PERMISSIONS.MESSAGES_SEND,
-            PERMISSIONS.MESSAGES_CREATE_CHANNEL,
-            PERMISSIONS.MESSAGES_DELETE,
-            PERMISSIONS.MESSAGES_VOICE,
-            PERMISSIONS.MESSAGES_FILE_UPLOAD
-        ]
-    },
     'operations': {
         name: 'Operations',
         description: 'Dispatch, damage, return operations',
